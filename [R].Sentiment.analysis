@@ -1,0 +1,428 @@
+# Load the required libraries. ----
+rm(list = ls())
+if (!require(sentimentr))
+  install.packages("sentimentr")
+if (!require(stringr))
+  install.packages("stringr")
+if (!require(SnowballC))
+  install.packages("SnowballC")
+if (!require(quanteda))
+  install.packages("quanteda")
+if (!require(plyr))
+  install.packages("plyr")
+if (!require(dplyr))
+  install.packages("dplyr")
+if (!require(factoextra))
+  install.packages("factoextra")
+if (!require(tidyverse))
+  install.packages("tidyverse")
+if (!require(ggplot2))
+  install.packages("ggplot2")
+if (!require(psych))
+  install.packages("psych")
+library(psych)
+library(ggplot2)
+library(tidyverse)
+library(sentimentr)
+library(stringr)
+library(SnowballC)
+library(quanteda)
+library(plyr)
+library(dplyr)
+library(factoextra)
+
+# Import data and make initial data prep ----
+rm(list = ls())
+setwd("D:\\R\\TED\\TED")
+ddmain = read.csv("ted_main.csv",
+                  na.strings = c("", " ", "NA"),
+                  stringsAsFactors = FALSE)
+dd = read.csv(
+  "transcripts.csv",
+  na.strings = c("", " ", "NA"),
+  stringsAsFactors = FALSE
+)
+
+# Summarize variables class for each data.frame
+# ddmain
+mainclass = data.frame(names(ddmain), rapply(ddmain, class))
+colnames(mainclass) = c("Varname", "Varclass")
+(length(unique(ddmain$name))) #[1] 2550
+(length(unique(ddmain$url))) #[1] 2550
+
+# dd
+ddclass = data.frame(names(dd), rapply(dd, class))
+colnames(ddclass) = c("Varname", "Varclass")
+(length(unique(dd$url))) #[1] 2464 # There are duplicates
+dd$url[duplicated(dd$url) == T]
+# [1] "https://www.ted.com/talks/jonathan_haidt_humanity_s_stairway_to_self_transcendence\n"
+# [2] "https://www.ted.com/talks/rob_reid_the_8_billion_ipod\n"
+# [3] "https://www.ted.com/talks/brene_brown_listening_to_shame\n"
+
+(which(duplicated(dd$url) == T)) #[1] 1115 1116 1117
+
+# Remove duplicats
+dd = dd[-(which(duplicated(dd$url) == T)), ]
+
+# Identify matches and differences
+url = list()
+url$both = intersect(ddmain$url, dd$url)
+(length(url$both)) #[1] 2464
+url$ddmain = setdiff(ddmain$url, dd$url)
+(length(url$ddmain)) #[1] 86
+
+# Merge data.frames
+dd = merge(dd, ddmain, by = "url")
+
+# Getting the ratings of every show. ----
+# Extracting the ratings.
+dd.rating = str_extract_all(dd$ratings, "\\{[^{}]+\\}")
+dd.rating = unlist(dd.rating)
+dd.rating = substring(dd.rating, 2, nchar(dd.rating) - 1)
+dd.rating = strsplit(dd.rating, split = "\\, |\\: ")
+dd.rating.table = data.frame(sapply(dd.rating, "[", 2),
+                             sapply(dd.rating, "[", 4),
+                             sapply(dd.rating, "[", 6))
+colnames(dd.rating.table) = c("Id", "Name", "Count")
+sapply(dd.rating.table, class) # classes are not okay now;
+dd.rating.table$Id <- as.numeric(as.character(dd.rating.table$Id))
+dd.rating.table$Name <- as.character(dd.rating.table$Name)
+dd.rating.table$Count <-
+  as.numeric(as.character(dd.rating.table$Count))
+sapply(dd.rating.table, class) # classes are okay now;
+table(dd.rating.table$Id, dd.rating.table$Name)
+# Extracting the numbers for the ratings.
+dd.shows.ratings <-
+  dd[, c(17, 18, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13)]
+colnames(dd.shows.ratings) <-
+  c(
+    "Title",
+    "Views",
+    "Beautiful",
+    "Confusing",
+    "Courageous",
+    "Fascinating",
+    "Funny",
+    'Informative',
+    "Ingenious",
+    "Inspiring",
+    "Jawdropping",
+    "Longwinded",
+    "Obnoxious",
+    "OK",
+    "Persuasive",
+    "Unconvincing"
+  )
+
+# Beautiful[3]
+dd.shows.ratings$Beautiful <-
+  gsub("[[:punct:]]", "", dd.shows.ratings$Beautiful)
+Beautiful <-
+  str_match(dd.shows.ratings$Beautiful, "\\bBeautiful count\\s*(\\d+)")
+dd.shows.ratings$Beautiful = Beautiful[, 2]
+dd.shows.ratings$Beautiful <- as.numeric(dd.shows.ratings$Beautiful)
+rm(Beautiful)
+
+# Confusing[4]
+dd.shows.ratings$Confusing <-
+  gsub("[[:punct:]]", "", dd.shows.ratings$Confusing)
+Confusing <-
+  str_match(dd.shows.ratings$Confusing, "\\bConfusing count\\s*(\\d+)")
+dd.shows.ratings$Confusing = as.numeric(Confusing[, 2])
+rm(Confusing)
+
+# Courageous[5]
+dd.shows.ratings$Courageous <-
+  gsub("[[:punct:]]", "", dd.shows.ratings$Courageous)
+Courageous <-
+  str_match(dd.shows.ratings$Courageous, "\\bCourageous count\\s*(\\d+)")
+dd.shows.ratings$Courageous = as.numeric(Courageous[, 2])
+rm(Courageous)
+
+# Fascinating[6]
+dd.shows.ratings$Fascinating <-
+  gsub("[[:punct:]]", "", dd.shows.ratings$Fascinating)
+Fascinating <-
+  str_match(dd.shows.ratings$Fascinating,
+            "\\bFascinating count\\s*(\\d+)")
+dd.shows.ratings$Fascinating = as.numeric(Fascinating[, 2])
+rm(Fascinating)
+
+# Funny[7]
+dd.shows.ratings$Funny <-
+  gsub("[[:punct:]]", "", dd.shows.ratings$Funny)
+Funny <-
+  str_match(dd.shows.ratings$Funny, "\\bFunny count\\s*(\\d+)")
+dd.shows.ratings$Funny = as.numeric(Funny[, 2])
+rm(Funny)
+
+# Informative[8]
+dd.shows.ratings$Informative <-
+  gsub("[[:punct:]]", "", dd.shows.ratings$Informative)
+Informative <-
+  str_match(dd.shows.ratings$Informative,
+            "\\bInformative count\\s*(\\d+)")
+dd.shows.ratings$Informative = as.numeric(Informative[, 2])
+rm(Informative)
+
+# Ingenious[9]
+dd.shows.ratings$Ingenious <-
+  gsub("[[:punct:]]", "", dd.shows.ratings$Ingenious)
+Ingenious <-
+  str_match(dd.shows.ratings$Ingenious, "\\bIngenious count\\s*(\\d+)")
+dd.shows.ratings$Ingenious = as.numeric(Ingenious[, 2])
+rm(Ingenious)
+
+# Inspiring[10]
+dd.shows.ratings$Inspiring <-
+  gsub("[[:punct:]]", "", dd.shows.ratings$Inspiring)
+Inspiring <-
+  str_match(dd.shows.ratings$Inspiring, "\\bInspiring count\\s*(\\d+)")
+dd.shows.ratings$Inspiring = as.numeric(Inspiring[, 2])
+rm(Inspiring)
+
+# Jawdropping[11]
+dd.shows.ratings$Jawdropping <-
+  gsub("[[:punct:]]", "", dd.shows.ratings$Jawdropping)
+Jawdropping <-
+  str_match(dd.shows.ratings$Jawdropping,
+            "\\bJawdropping count\\s*(\\d+)")
+dd.shows.ratings$Jawdropping = as.numeric(Jawdropping[, 2])
+rm(Jawdropping)
+
+# Longwinded[12]
+dd.shows.ratings$Longwinded <-
+  gsub("[[:punct:]]", "", dd.shows.ratings$Longwinded)
+Longwinded <-
+  str_match(dd.shows.ratings$Longwinded, "\\bLongwinded count\\s*(\\d+)")
+dd.shows.ratings$Longwinded = as.numeric(Longwinded[, 2])
+rm(Longwinded)
+
+# Obnoxious[13]
+dd.shows.ratings$Obnoxious <-
+  gsub("[[:punct:]]", "", dd.shows.ratings$Obnoxious)
+Obnoxious <-
+  str_match(dd.shows.ratings$Obnoxious, "\\bObnoxious count\\s*(\\d+)")
+dd.shows.ratings$Obnoxious = as.numeric(Obnoxious[, 2])
+rm(Obnoxious)
+
+# OK[14]
+dd.shows.ratings$OK <- gsub("[[:punct:]]", "", dd.shows.ratings$OK)
+OK <- str_match(dd.shows.ratings$OK, "\\bOK count\\s*(\\d+)")
+dd.shows.ratings$OK = as.numeric(OK[, 2])
+rm(OK)
+
+# Persuasive[15]
+dd.shows.ratings$Persuasive <-
+  gsub("[[:punct:]]", "", dd.shows.ratings$Persuasive)
+Persuasive <-
+  str_match(dd.shows.ratings$Persuasive, "\\bPersuasive count\\s*(\\d+)")
+dd.shows.ratings$Persuasive = as.numeric(Persuasive[, 2])
+rm(Persuasive)
+
+# Unconvincing[16]
+dd.shows.ratings$Unconvincing <-
+  gsub("[[:punct:]]", "", dd.shows.ratings$Unconvincing)
+Unconvincing <-
+  str_match(dd.shows.ratings$Unconvincing,
+            "\\bUnconvincing count\\s*(\\d+)")
+dd.shows.ratings$Unconvincing = as.numeric(Unconvincing[, 2])
+rm(Unconvincing)
+dd.shows.ratings$Views <- as.numeric(dd.shows.ratings$Views)
+sapply(dd.shows.ratings, class)
+colSums(is.na(dd.shows.ratings))
+# Pre-Clustering. ----
+dd.cluster <- dd.shows.ratings[, -c(1, 2)]
+summary(dd.cluster)
+windows()
+cor.plot(dd.cluster, numbers = T, las = 2)
+
+# Alpha coeeficients.
+a = alpha(dd.cluster, check.keys = T)
+a$keys
+a$total # raw alpha is above 0.7; therefore ,the variables copose a homogenic group; we can proceed;
+
+# Scree plot.
+windows()
+scree(dd.cluster, factors = F) # scree plot shows 4 factors;
+
+# Perform EFA.
+dd.cluster.efa = fa(dd.cluster, nfactors = 1)
+print(dd.cluster.efa)
+dd.cluster.efa$loadings
+dd.cluster.efa$weights
+print(dd.cluster.efa$loadings, cutoff = 0.3)
+windows()
+fa.diagram(dd.cluster.efa)
+
+# Let's create a new variable from M1 factors.
+TED = c(
+  "Beautiful",
+  "Confusing",
+  "Courageous",
+  "Fascinating",
+  "Funny",
+  "Informative",
+  "Ingenious",
+  "Inspiring",
+  "Jawdropping",
+  "Longwinded",
+  "Obnoxious",
+  "OK",
+  "Persuasive",
+  "Unconvincing"
+)
+dd.shows.ratings.TED = dd.shows.ratings
+dd.shows.ratings.TED$TED = apply(dd.shows.ratings.TED[, TED], 1, mean)
+View(dd.shows.ratings.TED)
+dd.shows.ratings.TED = dd.shows.ratings.TED[,-c(3:16)]
+
+
+# Fitting K-means. ----
+set.seed(1)
+dd.shows.ratings.TED.cluster <- dd.shows.ratings.TED[, -c(1, 2)]
+fitk <- kmeans(dd.shows.ratings.TED.cluster, 4)
+fitk$centers
+mean(dd.shows.ratings.TED$TED)
+dd.shows.ratings.TED$Cluster <- fitk$cluster
+windows()
+plot(dd.shows.ratings.TED, col = dd.shows.ratings.TED$Cluster)
+# Average number of words in every cluster. ----
+# Cluster1.
+Title.Cluster1 <-
+  list(dd.shows.ratings.TED$Title[which(dd.shows.ratings.TED$Cluster == 1)])
+Title.Cluster1 <- gsub("\\b\n", "", Title.Cluster1)
+Title.Cluster1 <- strsplit(Title.Cluster1, "\n")
+Title.Cluster1 <- gsub("[[:punct:]]", "", Title.Cluster1)
+Title.Cluster1 <- gsub("[0123456789]", "", Title.Cluster1)
+Title.Cluster1 <- sub("\\bcc", "", Title.Cluster1)
+Title.Cluster1 <- gsub("\n", "", Title.Cluster1)
+Title.Cluster1 <- gsub("[ \t]{2,}", "", Title.Cluster1)
+Title.Cluster1 <- gsub("^\\s+|\\s+$", "", Title.Cluster1)
+Average.words.Cluster1 <-
+  mean(sapply(Title.Cluster1, function(x) {
+    length(unlist(gregexpr(" ", x))) + 1
+  }))
+
+# Cluster2.
+Title.Cluster2 <-
+  list(dd.shows.ratings.TED$Title[which(dd.shows.ratings.TED$Cluster == 2)])
+Title.Cluster2 <- gsub("\\b\n", "", Title.Cluster2)
+Title.Cluster2 <- strsplit(Title.Cluster2, "\n")
+Title.Cluster2 <- gsub("[[:punct:]]", "", Title.Cluster2)
+Title.Cluster2 <- gsub("[0123456789]", "", Title.Cluster2)
+Title.Cluster2 <- sub("\\bcc", "", Title.Cluster2)
+Title.Cluster2 <- gsub("\n", "", Title.Cluster2)
+Title.Cluster2 <- gsub("[ \t]{2,}", "", Title.Cluster2)
+Title.Cluster2 <- gsub("^\\s+|\\s+$", "", Title.Cluster2)
+Average.words.Cluster2 <-
+  mean(sapply(Title.Cluster2, function(x) {
+    length(unlist(gregexpr(" ", x))) + 1
+  }))
+
+# Cluster3.
+Title.Cluster3 <-
+  list(dd.shows.ratings.TED$Title[which(dd.shows.ratings.TED$Cluster == 3)])
+Title.Cluster3 <- gsub("\\b\n", "", Title.Cluster3)
+Title.Cluster3 <- strsplit(Title.Cluster3, "\n")
+Title.Cluster3 <- gsub("[[:punct:]]", "", Title.Cluster3)
+Title.Cluster3 <- gsub("[0123456789]", "", Title.Cluster3)
+Title.Cluster3 <- sub("\\bcc", "", Title.Cluster3)
+Title.Cluster3 <- gsub("\n", "", Title.Cluster3)
+Title.Cluster3 <- gsub("[ \t]{2,}", "", Title.Cluster3)
+Title.Cluster3 <- gsub("^\\s+|\\s+$", "", Title.Cluster3)
+Average.words.Cluster3 <-
+  mean(sapply(Title.Cluster3, function(x) {
+    length(unlist(gregexpr(" ", x))) + 1
+  }))
+
+# Cluster4.
+Title.Cluster4 <-
+  list(dd.shows.ratings.TED$Title[which(dd.shows.ratings.TED$Cluster == 4)])
+Title.Cluster4 <- gsub("\\b\n", "", Title.Cluster4)
+Title.Cluster4 <- strsplit(Title.Cluster4, "\n")
+Title.Cluster4 <- gsub("[[:punct:]]", "", Title.Cluster4)
+Title.Cluster4 <- gsub("[0123456789]", "", Title.Cluster4)
+Title.Cluster4 <- sub("\\bcc", "", Title.Cluster4)
+Title.Cluster4 <- gsub("\n", "", Title.Cluster4)
+Title.Cluster4 <- gsub("[ \t]{2,}", "", Title.Cluster4)
+Title.Cluster4 <- gsub("^\\s+|\\s+$", "", Title.Cluster4)
+Average.words.Cluster4 <-
+  mean(sapply(Title.Cluster4, function(x) {
+    length(unlist(gregexpr(" ", x))) + 1
+  }))
+
+# 5 Most frequently words in every cluster. ----
+Title.Cluster1.lowercase <- tolower(Title.Cluster1)
+Title.Cluster1.Frequent5 <-
+  head(sort(table(strsplit(
+    gsub("[[:punct:]]", "", Title.Cluster1.lowercase), " "
+  )), decreasing = TRUE), 5)
+Title.Cluster2.lowercase <- tolower(Title.Cluster2)
+Title.Cluster2.Frequent5 <-
+  head(sort(table(strsplit(
+    gsub("[[:punct:]]", "", Title.Cluster2.lowercase), " "
+  )), decreasing = TRUE), 5)
+Title.Cluster3.lowercase <- tolower(Title.Cluster3)
+Title.Cluster3.Frequent5 <-
+  head(sort(table(strsplit(
+    gsub("[[:punct:]]", "", Title.Cluster3.lowercase), " "
+  )), decreasing = TRUE), 5)
+Title.Cluster4.lowercase <- tolower(Title.Cluster4)
+Title.Cluster4.Frequent5 <-
+  head(sort(table(strsplit(
+    gsub("[[:punct:]]", "", Title.Cluster4.lowercase), " "
+  )), decreasing = TRUE), 5)
+Title.Cluster1.Frequent5
+Title.Cluster2.Frequent5
+Title.Cluster3.Frequent5
+Title.Cluster4.Frequent5
+
+# Sentiment analysis----
+# Choosing the category. Checking which speaker has the most views.
+dd$most <- dd$views / sum(dd$views) * 100
+excl1 = dd$main_speaker[which(dd$most > 1)] # We choose Ken Robinson
+dd$main_speaker[which(str_detect(dd$main_speaker, "Ken Robinson") == T)]
+
+#[1] "Ken Robinson" "Ken Robinson" "Ken Robinson"
+KR = dd[which(str_detect(dd$main_speaker, "Ken Robinson") == T), ]
+
+# Select the top viewed show.
+KR = KR[KR$views == max(KR$views), ]
+
+# Derive the ratings attached to this video
+rating = str_extract_all(KR$ratings, "\\{[^{}]+\\}")
+rating = unlist(rating)
+rating = substring(rating, 2, nchar(rating) - 1)
+rating = strsplit(rating, split = "\\, |\\: ")
+KRrt = data.frame(sapply(rating, "[", 4), sapply(rating, "[", 6))
+colnames(KRrt) = c("name", "count")
+sapply(KRrt, class)
+KRrt$name = as.character(KRrt$name)
+KRrt$count = as.numeric(as.character(KRrt$count))
+KRrt = KRrt[order(KRrt$count, decreasing = T), ]
+
+# Derive sentiment of the entire transcript
+# Get the text sentences
+KRs = get_sentences(KR$transcript)
+KRs = unlist(KRs)
+
+# Estimate the sentiment and visualize it
+KRsent = sentiment(KRs)
+windows()
+plot(KRsent$sentiment,
+     type = "l",
+     col = "blue",
+     lwd = 2)
+summary(KRsent$sentiment)
+
+# Get sentiment words
+sentwords = extract_sentiment_terms(KRs)
+KRneg = unlist(sentwords$negative)
+KRnegs = wordStem(KRneg)
+KRnegs = data.frame(table(KRnegs))
+KRnegs = KRnegs[order(KRnegs$Freq, decreasing = T), ]
+KRpos = unlist(sentwords$positive)
+KRposs = wordStem(KRpos)
+KRposs = data.frame(table(KRposs))
+KRposs = KRposs[order(KRposs$Freq, decreasing = T), ]
