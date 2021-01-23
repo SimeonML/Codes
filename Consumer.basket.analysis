@@ -1,0 +1,1394 @@
+# Libraries - install and load. ----
+if (!require(lubridate)) {
+  if (!require(lubridate))
+    install.packages("lubridate")
+  library(lubridate)
+}
+if (!require(dplyr)) {
+  if (!require(dplyr))
+    install.packages("dplyr")
+  library(dplyr)
+}
+if (!require(cluster)) {
+  if (!require(cluster))
+    install.packages("cluster")
+  library(cluster)
+}
+if (!require(arules)) {
+  if (!require(arules))
+    install.packages("arules")
+  library(arules)
+}
+if (!require(RColorBrewer)) {
+  if (!require(RColorBrewer))
+    install.packages("RColorBrewer")
+  library(RColorBrewer)
+}
+if (!require(arulesViz)) {
+  if (!require(arulesViz))
+    install.packages("arulesViz")
+  library(arulesViz)
+}
+# if (!require(plyr)) {
+#   if (!require(plyr))
+#     install.packages("plyr")
+#   library(plyr)
+# }
+# if (!require(tidyverse)) {
+#   if (!require(tidyverse))
+#     install.packages("tidyverse")
+#   library(tidyverse)
+# }
+# if (!require(readxl)) {
+#   if (!require(readxl))
+#     install.packages("readxl")
+#   library(readxl)
+# }
+# if (!require(ggplot2)) {
+#   if (!require(ggplot2))
+#     install.packages("ggplot2")
+#   library(ggplot2)
+# }
+# if (!require(knitr)) {
+#   if (!require(knitr))
+#     install.packages("knitr")
+#   library(knitr)
+# }
+# if (!require(factoextra)) {
+#   if (!require(factoextra))
+#     install.packages("factoextra")
+#   library(factoextra)
+# }
+# Clear the environment and import. ----
+rm(list = ls())
+setwd("D:\\Simeon Mihaylov\\Simeon\\R\\University\\Kaufland\\Case")
+dd <-
+  read.csv(
+    "D:\\Simeon Mihaylov\\Simeon\\R\\University\\Kaufland\\Case\\Sofia_University_Recommender_case.csv",
+    na.strings = c("", " ", "NA"),
+    stringsAsFactors = FALSE
+  )
+dd1 <-
+  read.csv(
+    "D:\\Simeon Mihaylov\\Simeon\\R\\University\\Kaufland\\Case\\promo_flags.csv",
+    na.strings = c("", " ", "NA"),
+    stringsAsFactors = FALSE
+  )
+length(which(dd1$promo_type == "bonus_buy"))
+length(which(dd1$promo_type == "promo"))
+
+# Data preparation.
+sapply(dd, class)
+sapply(dd1, class)
+colSums(is.na(dd))
+colSums(is.na(dd1))
+which(is.na(dd$article_id))
+which(is.na(dd$price))
+dd = dd[-which(is.na(dd$price) == T),]
+summary(dd)
+summary(dd1)
+
+# Fixing the price issue.
+dd$ind = ifelse(dd$qty <= 0,-1, 1)
+dd$price_c = dd$price * dd$ind
+
+# Merge datasets.
+colnames(dd1)
+colnames(dd1)[colnames(dd1) == "bon_id"] <- "a.bon_id"
+dd.omit <- na.omit(dd)
+dd.merge <-
+  merge(
+    dd.omit,
+    dd1,
+    c("prmo_type"),
+    by.x = c("a.bon_id", "article_id"),
+    by.y = c("a.bon_id", "article_id"),
+    all.x = TRUE
+  )
+
+# Remove negative qqty/price
+dd.merge$neg = ifelse(dd.merge$price_c < 0, "NA", 1)
+length(which(dd.merge$neg == "NA"))
+dd.merge = dd.merge[which(dd.merge$neg == 1), ]
+
+# Assigning "no promo" to NAs.
+dd.merge$promo_type <-
+  ifelse(is.na(dd.merge$promo_type), "no promo", dd.merge$promo_type)
+
+# Adding seasonal data into the dataset. Then standardize the data accordingly.
+seasons = function(x) {
+  ifelse(x %in% 2:3, "Winter", ifelse(x %in% 4:6, "Spring", ifelse(x %in% 7:9, "Summer", "Autumn")))
+}
+
+# Get rid of customers that buy of large quantities.
+dd.merge$dummy1 <-
+  ifelse(
+    dd.merge$qty > 5 &
+      dd.merge$uni == "KG",
+    1,
+    ifelse(dd.merge$qty > 10 &
+             dd.merge$uni == "ST", 2, 0)
+  )
+dd.merge = dd.merge[-which(dd.merge$dummy1 == 1 |
+                             dd.merge$dummy1 == 2), ]
+
+# Pre-clustering. ----
+dd.pre.clustering <- dd.merge
+dd.pre.clustering <-
+  dd.pre.clustering[, -c(2, 4, 10, 12, 13, 15, 16)]
+colnames(dd.pre.clustering)[colnames(dd.pre.clustering) == "a.bon_id"] <-
+  "bon_id"
+colnames(dd.pre.clustering)[colnames(dd.pre.clustering) == "qty"] <-
+  "quantity"
+colnames(dd.pre.clustering)[colnames(dd.pre.clustering) == "article_mother"] <-
+  "article"
+colnames(dd.pre.clustering)[colnames(dd.pre.clustering) == "date_time.x"] <-
+  "date_time"
+colnames(dd.pre.clustering)[colnames(dd.pre.clustering) == "price_c"] <-
+  "price"
+dd.pre.clustering$date <- as.Date(dd.pre.clustering$date_time)
+dd.pre.clustering <- dd.pre.clustering[,-7]
+dd.pre.clustering$bon_id <-
+  gsub("[^0-9]", "", dd.pre.clustering$bon_id)
+dd.pre.clustering$bon_id <- as.numeric(dd.pre.clustering$bon_id)
+dd.pre.clustering$season = sapply(month(dd.pre.clustering$date), seasons)
+
+# dd.pre.clustering$customer <-
+#   gsub("[^0-9]", "", dd.pre.clustering$customer)
+
+# Data mining. Customer RFM.
+dd.pre.clustering.Customer.RFM <- dd.pre.clustering %>%
+  group_by(customer) %>%
+  summarise(
+    monetary = sum(price),
+    frequency = n(),
+    last.order.date = (max(date))
+  )
+dd.pre.clustering.Customer.RFM$recency = as.numeric(max(dd.pre.clustering$date) -
+                                                      dd.pre.clustering.Customer.RFM$last.order.date)
+dd.pre.clustering.Customer.RFM <-
+  dd.pre.clustering.Customer.RFM[, -4]
+
+# Grading Customer RFM.
+dd.pre.clustering.Customer.RFM$frequency <-
+  as.numeric(dd.pre.clustering.Customer.RFM$frequency)
+dd.pre.clustering.Customer.RFM$R.Grade <-
+  sapply(dd.pre.clustering.Customer.RFM$recency, function(x) {
+    ifelse(
+      x >= min(dd.pre.clustering.Customer.RFM$recency) &
+        x <= 29 ,
+      5,
+      ifelse(x >= 30 &
+               x <= 61, 4, ifelse(
+                 x >= 62 & x <= 99, 3, ifelse(x >= 100 & x <= 171, 2, 1)
+               ))
+    )
+  })
+dd.pre.clustering.Customer.RFM$M.Grade <-
+  sapply(dd.pre.clustering.Customer.RFM$monetary, function(x) {
+    ifelse(
+      x >= min(dd.pre.clustering.Customer.RFM$monetary) &
+        x <= 600 ,
+      5,
+      ifelse(x >= 601 &
+               x <= 1200, 4, ifelse(
+                 x >= 1201 & x <= 10000, 3, ifelse(x >= 10001 & x <= 30000, 2, 1)
+               ))
+    )
+  })
+dd.pre.clustering.Customer.RFM$F.Grade <-
+  sapply(dd.pre.clustering.Customer.RFM$frequency, function(x) {
+    ifelse(
+      x >= min(dd.pre.clustering.Customer.RFM$frequency) &
+        x <= 29 ,
+      5,
+      ifelse(x >= 30 &
+               x <= 100, 4, ifelse(
+                 x >= 101 & x <= 1000, 3, ifelse(x >= 1001 & x <= 2000, 2, 1)
+               ))
+    )
+  })
+dd.pre.clustering.Customer.RFM$RFM.Grade <-
+  as.character(
+    paste0(
+      dd.pre.clustering.Customer.RFM$R.Grade,
+      dd.pre.clustering.Customer.RFM$F.Grade,
+      dd.pre.clustering.Customer.RFM$M.Grade
+    )
+  )
+# save(dd.pre.clustering.Customer.RFM, file = "dd.pre.clustering.Customer.RFM")
+
+# Clustering. ----
+dd.cluster <- dd.pre.clustering.Customer.RFM[, c(5, 6, 7)]
+set.seed(25)
+k <- list()
+for (i in 1:10) {
+  k[[i]] <- kmeans(dd.cluster, i)
+}
+
+betweenss_totss <- list()
+for (i in 1:10) {
+  betweenss_totss[[i]] <- k[[i]]$betweenss / k[[i]]$totss
+}
+windows()
+plot(1:10,
+     betweenss_totss,
+     type = "b",
+     ylab = "Between SS/ Total SS",
+     xlab = "Clusters")
+
+# Fit k-means with 6 clusters.
+set.seed(11345)
+fitk <- kmeans(dd.cluster, 6)
+fitk$centers
+
+# Bind the cluster with the RFM data.
+dd.pre.clustering.Customer.RFM$cluster <- fitk$cluster
+
+# 2D graph for cluster.
+windows()
+clusplot(
+  dd.cluster,
+  fitk$cluster,
+  main = "2D representation of clusters",
+  shade = TRUE,
+  lines = 0
+)
+
+#### Market basket analysis with 6 clusters as per k-means clustering. ####
+dd.market <-
+  merge(
+    dd.merge,
+    dd.pre.clustering.Customer.RFM,
+    by.x = "customer",
+    by.y = "customer",
+    all.x = TRUE
+  )
+dd.market <- dd.market[,-c(3, 4, 8, 10, 12:23)]
+colnames(dd.market)[colnames(dd.market) == "a.bon_id"] <-
+  "bon_id"
+colnames(dd.market)[colnames(dd.market) == "price_c"] <- "price"
+colnames(dd.market)[colnames(dd.market) == "date_time.x"] <-
+  "date_time"
+colnames(dd.market)[colnames(dd.market) == "article_mother"] <-
+  "article"
+colnames(dd.market)[colnames(dd.market) == "qty"] <- "quantity"
+
+# [1] ----
+dd.market.1 <- dd.market[which(dd.market$cluster == 1), ]
+
+# Convert character data into date.
+dd.market.1$Date <- as.Date(dd.market.1$date_time)
+dd.market.1$date_time <-
+  as.POSIXlt(dd.market.1$date_time, tz = "", "%Y-%m-%d %H:%M:%S")
+
+# Extract time from date_time and store it into a different variable.
+dd.market.1.TranTime <- format(dd.market.1$date_time, "%H:%M:%S")
+
+# Convert and edit bon_id into a numeric variable.
+dd.market.1$bon_id <- gsub("[^0-9]", "", dd.market.1$bon_id)
+dd.market.1.bon_id <- as.numeric(as.character(dd.market.1$bon_id))
+
+# Bind new columns TransTime and Bon.id into the dataframe dd.market.1.
+cbind(dd.market.1, dd.market.1.TranTime, dd.market.1.bon_id)
+
+# Glimpse of the data
+dd.market.1$article <- as.character(dd.market.1$article)
+glimpse(dd.market.1)
+
+# Combine all the products from one Bon.id and Date and combine all products from that Bon.id and Date as one row, with each item, separated by a comma.
+dd.market.1.transactions = dd.market.1 %>%
+  group_by(bon_id) %>%
+  summarise(date = Date[1],
+            article = list(article))
+dd.market.1.transactions$article <-
+  as.character(dd.market.1.transactions$article)
+dd.market.1.transactions$article <-
+  gsub("[a-z]", "", dd.market.1.transactions$article)
+dd.market.1.transactions$article <-
+  gsub("[\\b(]", "", dd.market.1.transactions$article)
+dd.market.1.transactions$article <-
+  gsub("[\\b)]", "", dd.market.1.transactions$article)
+dd.market.1.transactions$bon_id <- NULL
+dd.market.1.transactions$date <- NULL
+colnames(dd.market.1.transactions) <- c("products")
+dd.market.1.transactions
+
+# Write csv.
+write.csv(
+  dd.market.1.transactions,
+  "D:/Simeon Mihaylov/Simeon/R/University/Kaufland/Case/market_basket_transaction_market_1.csv",
+  quote = FALSE,
+  row.names = FALSE
+)
+
+# Read the transactions data.
+tr.market.1 <-
+  read.transactions(
+    "D:/Simeon Mihaylov/Simeon/R/University/Kaufland/Case/market_basket_transaction_market_1.csv",
+    format = "basket",
+    sep = ","
+  )
+
+# Transform into transaction object
+trObj <- as(tr.market.1, "transactions")
+summary(trObj)
+summary(tr.market.1)
+
+# Create an item frequency plot for the top 20 items.
+windows()
+itemFrequencyPlot(
+  tr.market.1,
+  topN = 20,
+  type = "absolute",
+  col = brewer.pal(8, "Pastel2"),
+  main = "Absolute Product Frequency Plot"
+)
+
+# Generating rules. Min support as 0.001, confidence as 0.8.
+market.1.association.rules <-
+  apriori(tr.market.1, parameter = list(
+    supp = 0.001,
+    conf = 0.8,
+    maxlen = 10
+  ))
+summary(market.1.association.rules)
+
+# Let's print top 10 rules.
+inspect(market.1.association.rules[1:10])
+
+# Limit the number and size of rules generated.
+market.1.short.association.rules <-
+  apriori(tr.market.1, parameter = list(
+    supp = 0.001,
+    conf = 0.8,
+    maxlen = 3
+  ))
+
+# Remove redundant rules.
+market.1.subset.rules <-
+  which(colSums(
+    is.subset(market.1.association.rules, market.1.association.rules)
+  ) > 1)
+length(market.1.subset.rules)
+subset.market.1.association.rules <-
+  market.1.association.rules[-market.1.subset.rules]
+
+# Filter rules with confidence greater than 0.4/ 40%.
+market.1.subRules <-
+  market.1.association.rules[quality(market.1.association.rules)$confidence > 0.4]
+plot(market.1.subRules)
+#
+plot(market.1.subRules, method = "two-key plot")
+
+# Top 10 rules.
+market.1.subRules.top10 <-
+  head(market.1.subRules, n = 10, by = "confidence")
+windows()
+plot(market.1.subRules.top10,
+     method = "graph",
+     engine = "htmlwidget")
+
+# Filter top 20 rules.
+market.1.subRules.top20 <-
+  head(market.1.subRules , n = 20, by = "lift")
+windows()
+plot(market.1.subRules.top20, method = "paracoord")
+
+# [2] ----
+dd.market.2 <- dd.market[which(dd.market$cluster == 2), ]
+
+# Convert character data into date.
+dd.market.2$Date <- as.Date(dd.market.2$date_time)
+dd.market.2$date_time <-
+  as.POSIXlt(dd.market.2$date_time, tz = "", "%Y-%m-%d %H:%M:%S")
+
+# Extract time from date_time and store it into a different variable.
+dd.market.2.TranTime <- format(dd.market.2$date_time, "%H:%M:%S")
+
+# Convert and edit bon_id into a numeric variable.
+dd.market.2$bon_id <- gsub("[^0-9]", "", dd.market.2$bon_id)
+dd.market.2.bon_id <- as.numeric(as.character(dd.market.2$bon_id))
+
+# Bind new columns TransTime and Bon.id into the dataframe dd.market.2.
+cbind(dd.market.2, dd.market.2.TranTime, dd.market.2.bon_id)
+
+# Glimpse of the data
+dd.market.2$article <- as.character(dd.market.2$article)
+glimpse(dd.market.2)
+
+# Combine all the products from one Bon.id and Date and combine all products from that Bon.id and Date as one row, with each item, separated by a comma.
+dd.market.2.transactions = dd.market.2 %>%
+  group_by(bon_id) %>%
+  summarise(date = Date[1],
+            article = list(article))
+dd.market.2.transactions$article <-
+  as.character(dd.market.2.transactions$article)
+dd.market.2.transactions$article <-
+  gsub("[a-z]", "", dd.market.2.transactions$article)
+dd.market.2.transactions$article <-
+  gsub("[\\b(]", "", dd.market.2.transactions$article)
+dd.market.2.transactions$article <-
+  gsub("[\\b)]", "", dd.market.2.transactions$article)
+dd.market.2.transactions$bon_id <- NULL
+dd.market.2.transactions$date <- NULL
+colnames(dd.market.2.transactions) <- c("products")
+dd.market.2.transactions
+
+# Write csv.
+write.csv(
+  dd.market.2.transactions,
+  "D:/Simeon Mihaylov/Simeon/R/Kaufland/Case/market_basket_transaction_market_2.csv",
+  quote = FALSE,
+  row.names = FALSE
+)
+
+# Read the transactions data.
+tr.market.2 <-
+  read.transactions(
+    "D:/Simeon Mihaylov/Simeon/R/Kaufland/Case/market_basket_transaction_market_2.csv",
+    format = "basket",
+    sep = ","
+  )
+
+# Transform into transaction object
+trObj <- as(tr.market.2, "transactions")
+summary(trObj)
+summary(tr.market.2)
+
+# Create an item frequency plot for the top 20 items.
+windows()
+itemFrequencyPlot(
+  tr.market.2,
+  topN = 20,
+  type = "absolute",
+  col = brewer.pal(8, "Pastel2"),
+  main = "Absolute Product Frequency Plot"
+)
+
+# Generating rules. Min support as 0.001, confidence as 0.8.
+market.2.association.rules <-
+  apriori(tr.market.2, parameter = list(
+    supp = 0.001,
+    conf = 0.8,
+    maxlen = 10
+  ))
+summary(market.2.association.rules)
+
+# Let's print top 10 rules.
+inspect(market.2.association.rules[1:10])
+
+# Limit the number and size of rules generated.
+market.2.short.association.rules <-
+  apriori(tr.market.2, parameter = list(
+    supp = 0.001,
+    conf = 0.8,
+    maxlen = 3
+  ))
+
+# Remove redundant rules.
+market.2.subset.rules <-
+  which(colSums(
+    is.subset(market.2.association.rules, market.2.association.rules)
+  ) > 1)
+length(market.2.subset.rules)
+subset.market.2.association.rules <-
+  market.2.association.rules[-market.2.subset.rules]
+
+# Filter rules with confidence greater than 0.4/ 40%.
+market.2.subRules <-
+  market.2.association.rules[quality(market.2.association.rules)$confidence > 0.4]
+plot(market.2.subRules)
+#
+plot(market.2.subRules, method = "two-key plot")
+
+# Top 10 rules.
+market.2.subRules.top10 <-
+  head(market.2.subRules, n = 10, by = "confidence")
+windows()
+plot(market.2.subRules.top10,
+     method = "graph",
+     engine = "htmlwidget")
+
+# Filter top 20 rules.
+market.2.subRules.top20 <-
+  head(market.2.subRules , n = 20, by = "lift")
+windows()
+plot(market.2.subRules.top20, method = "paracoord")
+
+# [3] ----
+dd.market.3 <- dd.market[which(dd.market$cluster == 3), ]
+
+# Convert character data into date.
+dd.market.3$Date <- as.Date(dd.market.3$date_time)
+dd.market.3$date_time <-
+  as.POSIXlt(dd.market.3$date_time, tz = "", "%Y-%m-%d %H:%M:%S")
+
+# Extract time from date_time and store it into a different variable.
+dd.market.3.TranTime <- format(dd.market.3$date_time, "%H:%M:%S")
+
+# Convert and edit bon_id into a numeric variable.
+dd.market.3$bon_id <- gsub("[^0-9]", "", dd.market.3$bon_id)
+dd.market.3.bon_id <- as.numeric(as.character(dd.market.3$bon_id))
+
+# Bind new columns TransTime and Bon.id into the dataframe dd.market.3.
+cbind(dd.market.3, dd.market.3.TranTime, dd.market.3.bon_id)
+
+# Glimpse of the data
+dd.market.3$article <- as.character(dd.market.3$article)
+glimpse(dd.market.3)
+
+# Combine all the products from one Bon.id and Date and combine all products from that Bon.id and Date as one row, with each item, separated by a comma.
+dd.market.3.transactions = dd.market.3 %>%
+  group_by(bon_id) %>%
+  summarise(date = Date[1],
+            article = list(article))
+dd.market.3.transactions$article <-
+  as.character(dd.market.3.transactions$article)
+dd.market.3.transactions$article <-
+  gsub("[a-z]", "", dd.market.3.transactions$article)
+dd.market.3.transactions$article <-
+  gsub("[\\b(]", "", dd.market.3.transactions$article)
+dd.market.3.transactions$article <-
+  gsub("[\\b)]", "", dd.market.3.transactions$article)
+dd.market.3.transactions$bon_id <- NULL
+dd.market.3.transactions$date <- NULL
+colnames(dd.market.3.transactions) <- c("products")
+dd.market.3.transactions
+
+# Write csv.
+write.csv(
+  dd.market.3.transactions,
+  "D:/Simeon Mihaylov/Simeon/R/Kaufland/Case/market_basket_transaction_market_3.csv",
+  quote = FALSE,
+  row.names = FALSE
+)
+
+# Read the transactions data.
+tr.market.3 <-
+  read.transactions(
+    "D:/Simeon Mihaylov/Simeon/R/Kaufland/Case/market_basket_transaction_market_3.csv",
+    format = "basket",
+    sep = ","
+  )
+
+# Transform into transaction object
+trObj <- as(tr.market.3, "transactions")
+summary(trObj)
+summary(tr.market.3)
+
+# Create an item frequency plot for the top 20 items.
+windows()
+itemFrequencyPlot(
+  tr.market.3,
+  topN = 20,
+  type = "absolute",
+  col = brewer.pal(8, "Pastel2"),
+  main = "Absolute Product Frequency Plot"
+)
+
+# Generating rules. Min support as 0.001, confidence as 0.8.
+market.3.association.rules <-
+  apriori(tr.market.3, parameter = list(
+    supp = 0.001,
+    conf = 0.8,
+    maxlen = 10
+  ))
+summary(market.3.association.rules)
+
+# Let's print top 10 rules.
+inspect(market.3.association.rules[1:10])
+
+# Limit the number and size of rules generated.
+market.3.short.association.rules <-
+  apriori(tr.market.3, parameter = list(
+    supp = 0.001,
+    conf = 0.8,
+    maxlen = 3
+  ))
+
+# Remove redundant rules.
+market.3.subset.rules <-
+  which(colSums(
+    is.subset(market.3.association.rules, market.3.association.rules)
+  ) > 1)
+length(market.3.subset.rules)
+subset.market.3.association.rules <-
+  market.3.association.rules[-market.3.subset.rules]
+
+# Filter rules with confidence greater than 0.4/ 40%.
+market.3.subRules <-
+  market.3.association.rules[quality(market.3.association.rules)$confidence > 0.4]
+plot(market.3.subRules)
+#
+plot(market.3.subRules, method = "two-key plot")
+
+# Top 10 rules.
+market.3.subRules.top10 <-
+  head(market.3.subRules, n = 10, by = "confidence")
+windows()
+plot(market.3.subRules.top10,
+     method = "graph",
+     engine = "htmlwidget")
+
+# Filter top 20 rules.
+market.3.subRules.top20 <-
+  head(market.3.subRules , n = 20, by = "lift")
+windows()
+plot(market.3.subRules.top20, method = "paracoord")
+
+# [4] ----
+dd.market.4 <- dd.market[which(dd.market$cluster == 4), ]
+
+# Convert character data into date.
+dd.market.4$Date <- as.Date(dd.market.4$date_time)
+dd.market.4$date_time <-
+  as.POSIXlt(dd.market.4$date_time, tz = "", "%Y-%m-%d %H:%M:%S")
+
+# Extract time from date_time and store it into a different variable.
+dd.market.4.TranTime <- format(dd.market.4$date_time, "%H:%M:%S")
+
+# Convert and edit bon_id into a numeric variable.
+dd.market.4$bon_id <- gsub("[^0-9]", "", dd.market.4$bon_id)
+dd.market.4.bon_id <- as.numeric(as.character(dd.market.4$bon_id))
+
+# Bind new columns TransTime and Bon.id into the dataframe dd.market.4.
+cbind(dd.market.4, dd.market.4.TranTime, dd.market.4.bon_id)
+
+# Glimpse of the data
+dd.market.4$article <- as.character(dd.market.4$article)
+glimpse(dd.market.4)
+
+# Combine all the products from one Bon.id and Date and combine all products from that Bon.id and Date as one row, with each item, separated by a comma.
+dd.market.4.transactions = dd.market.4 %>%
+  group_by(bon_id) %>%
+  summarise(date = Date[1],
+            article = list(article))
+dd.market.4.transactions$article <-
+  as.character(dd.market.4.transactions$article)
+dd.market.4.transactions$article <-
+  gsub("[a-z]", "", dd.market.4.transactions$article)
+dd.market.4.transactions$article <-
+  gsub("[\\b(]", "", dd.market.4.transactions$article)
+dd.market.4.transactions$article <-
+  gsub("[\\b)]", "", dd.market.4.transactions$article)
+dd.market.4.transactions$bon_id <- NULL
+dd.market.4.transactions$date <- NULL
+colnames(dd.market.4.transactions) <- c("products")
+dd.market.4.transactions
+
+# Write csv.
+write.csv(
+  dd.market.4.transactions,
+  "D:/Simeon Mihaylov/Simeon/R/Kaufland/Case/market_basket_transaction_market_4.csv",
+  quote = FALSE,
+  row.names = FALSE
+)
+
+# Read the transactions data.
+tr.market.4 <-
+  read.transactions(
+    "D:/Simeon Mihaylov/Simeon/R/Kaufland/Case/market_basket_transaction_market_4.csv",
+    format = "basket",
+    sep = ","
+  )
+
+# Transform into transaction object
+trObj <- as(tr.market.4, "transactions")
+summary(trObj)
+summary(tr.market.4)
+
+# Create an item frequency plot for the top 20 items.
+windows()
+itemFrequencyPlot(
+  tr.market.4,
+  topN = 20,
+  type = "absolute",
+  col = brewer.pal(8, "Pastel2"),
+  main = "Absolute Product Frequency Plot"
+)
+
+# Generating rules. Min support as 0.001, confidence as 0.8.
+market.4.association.rules <-
+  apriori(tr.market.4, parameter = list(
+    supp = 0.001,
+    conf = 0.8,
+    maxlen = 10
+  ))
+summary(market.4.association.rules)
+
+# Let's print top 10 rules.
+inspect(market.4.association.rules[1:10])
+
+# Limit the number and size of rules generated.
+market.4.short.association.rules <-
+  apriori(tr.market.4, parameter = list(
+    supp = 0.001,
+    conf = 0.8,
+    maxlen = 3
+  ))
+
+# Remove redundant rules.
+market.4.subset.rules <-
+  which(colSums(
+    is.subset(market.4.association.rules, market.4.association.rules)
+  ) > 1)
+length(market.4.subset.rules)
+subset.market.4.association.rules <-
+  market.4.association.rules[-market.4.subset.rules]
+
+# Filter rules with confidence greater than 0.4/ 40%.
+market.4.subRules <-
+  market.4.association.rules[quality(market.4.association.rules)$confidence > 0.4]
+plot(market.4.subRules)
+#
+plot(market.4.subRules, method = "two-key plot")
+
+# Top 10 rules.
+market.4.subRules.top10 <-
+  head(market.4.subRules, n = 10, by = "confidence")
+windows()
+plot(market.4.subRules.top10,
+     method = "graph",
+     engine = "htmlwidget")
+
+# Filter top 20 rules.
+market.4.subRules.top20 <-
+  head(market.4.subRules , n = 20, by = "lift")
+windows()
+plot(market.4.subRules.top20, method = "paracoord")
+
+# [5] ----
+dd.market.5 <- dd.market[which(dd.market$cluster == 5), ]
+
+# Convert character data into date.
+dd.market.5$Date <- as.Date(dd.market.5$date_time)
+dd.market.5$date_time <-
+  as.POSIXlt(dd.market.5$date_time, tz = "", "%Y-%m-%d %H:%M:%S")
+
+# Extract time from date_time and store it into a different variable.
+dd.market.5.TranTime <- format(dd.market.5$date_time, "%H:%M:%S")
+
+# Convert and edit bon_id into a numeric variable.
+dd.market.5$bon_id <- gsub("[^0-9]", "", dd.market.5$bon_id)
+dd.market.5.bon_id <- as.numeric(as.character(dd.market.5$bon_id))
+
+# Bind new columns TransTime and Bon.id into the dataframe dd.market.5.
+cbind(dd.market.5, dd.market.5.TranTime, dd.market.5.bon_id)
+
+# Glimpse of the data
+dd.market.5$article <- as.character(dd.market.5$article)
+glimpse(dd.market.5)
+
+# Combine all the products from one Bon.id and Date and combine all products from that Bon.id and Date as one row, with each item, separated by a comma.
+dd.market.5.transactions = dd.market.5 %>%
+  group_by(bon_id) %>%
+  summarise(date = Date[1],
+            article = list(article))
+dd.market.5.transactions$article <-
+  as.character(dd.market.5.transactions$article)
+dd.market.5.transactions$article <-
+  gsub("[a-z]", "", dd.market.5.transactions$article)
+dd.market.5.transactions$article <-
+  gsub("[\\b(]", "", dd.market.5.transactions$article)
+dd.market.5.transactions$article <-
+  gsub("[\\b)]", "", dd.market.5.transactions$article)
+dd.market.5.transactions$bon_id <- NULL
+dd.market.5.transactions$date <- NULL
+colnames(dd.market.5.transactions) <- c("products")
+dd.market.5.transactions
+
+# Write csv.
+write.csv(
+  dd.market.5.transactions,
+  "D:/Simeon Mihaylov/Simeon/R/Kaufland/Case/market_basket_transaction_market_5.csv",
+  quote = FALSE,
+  row.names = FALSE
+)
+
+# Read the transactions data.
+tr.market.5 <-
+  read.transactions(
+    "D:/Simeon Mihaylov/Simeon/R/Kaufland/Case/market_basket_transaction_market_5.csv",
+    format = "basket",
+    sep = ","
+  )
+
+# Transform into transaction object
+trObj <- as(tr.market.5, "transactions")
+summary(trObj)
+summary(tr.market.5)
+
+# Create an item frequency plot for the top 20 items.
+windows()
+itemFrequencyPlot(
+  tr.market.5,
+  topN = 20,
+  type = "absolute",
+  col = brewer.pal(8, "Pastel2"),
+  main = "Absolute Product Frequency Plot"
+)
+
+# Generating rules. Min support as 0.001, confidence as 0.8.
+market.5.association.rules <-
+  apriori(tr.market.5, parameter = list(
+    supp = 0.001,
+    conf = 0.8,
+    maxlen = 10
+  ))
+summary(market.5.association.rules)
+
+# Let's print top 10 rules.
+inspect(market.5.association.rules[1:10])
+
+# Limit the number and size of rules generated.
+market.5.short.association.rules <-
+  apriori(tr.market.5, parameter = list(
+    supp = 0.001,
+    conf = 0.8,
+    maxlen = 3
+  ))
+
+# Remove redundant rules.
+market.5.subset.rules <-
+  which(colSums(
+    is.subset(market.5.association.rules, market.5.association.rules)
+  ) > 1)
+length(market.5.subset.rules)
+subset.market.5.association.rules <-
+  market.5.association.rules[-market.5.subset.rules]
+
+# Filter rules with confidence greater than 0.4/ 40%.
+market.5.subRules <-
+  market.5.association.rules[quality(market.5.association.rules)$confidence > 0.4]
+plot(market.5.subRules)
+#
+plot(market.5.subRules, method = "two-key plot")
+
+# Top 10 rules.
+market.5.subRules.top10 <-
+  head(market.5.subRules, n = 10, by = "confidence")
+windows()
+plot(market.5.subRules.top10,
+     method = "graph",
+     engine = "htmlwidget")
+
+# Filter top 20 rules.
+market.5.subRules.top20 <-
+  head(market.5.subRules , n = 20, by = "lift")
+windows()
+plot(market.5.subRules.top20, method = "paracoord")
+
+# [6] ----
+dd.market.6 <- dd.market[which(dd.market$cluster == 5), ]
+
+# Convert character data into date.
+dd.market.6$Date <- as.Date(dd.market.6$date_time)
+dd.market.6$date_time <-
+  as.POSIXlt(dd.market.6$date_time, tz = "", "%Y-%m-%d %H:%M:%S")
+
+# Extract time from date_time and store it into a different variable.
+dd.market.6.TranTime <- format(dd.market.6$date_time, "%H:%M:%S")
+
+# Convert and edit bon_id into a numeric variable.
+dd.market.6$bon_id <- gsub("[^0-9]", "", dd.market.6$bon_id)
+dd.market.6.bon_id <- as.numeric(as.character(dd.market.6$bon_id))
+
+# Bind new columns TransTime and Bon.id into the dataframe dd.market.6.
+cbind(dd.market.6, dd.market.6.TranTime, dd.market.6.bon_id)
+
+# Glimpse of the data
+dd.market.6$article <- as.character(dd.market.6$article)
+glimpse(dd.market.6)
+
+# Combine all the products from one Bon.id and Date and combine all products from that Bon.id and Date as one row, with each item, separated by a comma.
+dd.market.6.transactions = dd.market.6 %>%
+  group_by(bon_id) %>%
+  summarise(date = Date[1],
+            article = list(article))
+dd.market.6.transactions$article <-
+  as.character(dd.market.6.transactions$article)
+dd.market.6.transactions$article <-
+  gsub("[a-z]", "", dd.market.6.transactions$article)
+dd.market.6.transactions$article <-
+  gsub("[\\b(]", "", dd.market.6.transactions$article)
+dd.market.6.transactions$article <-
+  gsub("[\\b)]", "", dd.market.6.transactions$article)
+dd.market.6.transactions$bon_id <- NULL
+dd.market.6.transactions$date <- NULL
+colnames(dd.market.6.transactions) <- c("products")
+dd.market.6.transactions
+
+# Write csv.
+write.csv(
+  dd.market.6.transactions,
+  "D:/Simeon Mihaylov/Simeon/R/Kaufland/Case/market_basket_transaction_market_6.csv",
+  quote = FALSE,
+  row.names = FALSE
+)
+
+# Read the transactions data.
+tr.market.6 <-
+  read.transactions(
+    "D:/Simeon Mihaylov/Simeon/R/Kaufland/Case/market_basket_transaction_market_6.csv",
+    format = "basket",
+    sep = ","
+  )
+
+# Transform into transaction object
+trObj <- as(tr.market.6, "transactions")
+summary(trObj)
+summary(tr.market.6)
+
+# Create an item frequency plot for the top 20 items.
+windows()
+itemFrequencyPlot(
+  tr.market.6,
+  topN = 20,
+  type = "absolute",
+  col = brewer.pal(8, "Pastel2"),
+  main = "Absolute Product Frequency Plot"
+)
+
+# Generating rules. Min support as 0.001, confidence as 0.8.
+market.6.association.rules <-
+  apriori(tr.market.6, parameter = list(
+    supp = 0.001,
+    conf = 0.8,
+    maxlen = 10
+  ))
+summary(market.6.association.rules)
+
+# Let's print top 10 rules.
+inspect(market.6.association.rules[1:10])
+
+# Limit the number and size of rules generated.
+market.6.short.association.rules <-
+  apriori(tr.market.6, parameter = list(
+    supp = 0.001,
+    conf = 0.8,
+    maxlen = 3
+  ))
+
+# Remove redundant rules.
+market.6.subset.rules <-
+  which(colSums(
+    is.subset(market.6.association.rules, market.6.association.rules)
+  ) > 1)
+length(market.6.subset.rules)
+subset.market.6.association.rules <-
+  market.6.association.rules[-market.6.subset.rules]
+
+# Filter rules with confidence greater than 0.4/ 40%.
+market.6.subRules <-
+  market.6.association.rules[quality(market.6.association.rules)$confidence > 0.4]
+plot(market.6.subRules)
+#
+plot(market.6.subRules, method = "two-key plot")
+
+# Top 10 rules.
+market.6.subRules.top10 <-
+  head(market.6.subRules, n = 10, by = "confidence")
+windows()
+plot(market.6.subRules.top10,
+     method = "graph",
+     engine = "htmlwidget")
+
+# Filter top 20 rules.
+market.6.subRules.top20 <-
+  head(market.6.subRules , n = 20, by = "lift")
+windows()
+plot(market.6.subRules.top20, method = "paracoord")
+#### Market basket analysis without k-means clustering as per type of purchase: [1] no promo; [2] promo; [3] bonus_buy.####
+# [1] no promo: ----
+dd.no.promo <- dd.merge[which(dd.merge$promo_type == "no promo"), ]
+colnames(dd.no.promo)
+dd.no.promo <- dd.no.promo[,-c(2, 4, 8, 10, 12, 13, 15, 16)]
+colnames(dd.no.promo)[colnames(dd.no.promo) == "a.bon_id"] <-
+  "bon_id"
+colnames(dd.no.promo)[colnames(dd.no.promo) == "price_c"] <- "price"
+colnames(dd.no.promo)[colnames(dd.no.promo) == "date_time.x"] <-
+  "date_time"
+colnames(dd.no.promo)[colnames(dd.no.promo) == "article_mother"] <-
+  "article"
+colnames(dd.no.promo)[colnames(dd.no.promo) == "qty"] <- "quantity"
+
+# Convert character data into date.
+dd.no.promo$Date <- as.Date(dd.no.promo$date_time)
+dd.no.promo$date_time <-
+  as.POSIXlt(dd.no.promo$date_time, tz = "", "%Y-%m-%d %H:%M:%S")
+
+# Extract time from date_time and store it into a different variable.
+dd.no.promo.TranTime <- format(dd.no.promo$date_time, "%H:%M:%S")
+
+# Convert and edit bon_id into a numeric variable.
+dd.no.promo$bon_id <- gsub("[^0-9]", "", dd.no.promo$bon_id)
+dd.no.promo.bon_id <- as.numeric(as.character(dd.no.promo$bon_id))
+
+# Bind new columns TransTime and Bon.id into the dataframe dd.no.promo.
+cbind(dd.no.promo, dd.no.promo.TranTime, dd.no.promo.bon_id)
+
+# Glimpse of the data
+dd.no.promo$article <- as.character(dd.no.promo$article)
+glimpse(dd.no.promo)
+
+# Combine all the products from one Bon.id and Date and combine all products from that Bon.id and Date as one row, with each item, separated by a comma.
+dd.no.promo.transactions = dd.no.promo %>%
+  group_by(bon_id) %>%
+  summarise(date = Date[1],
+            article = list(article))
+dd.no.promo.transactions$article <-
+  as.character(dd.no.promo.transactions$article)
+dd.no.promo.transactions$article <-
+  gsub("[a-z]", "", dd.no.promo.transactions$article)
+dd.no.promo.transactions$article <-
+  gsub("[\\b(]", "", dd.no.promo.transactions$article)
+dd.no.promo.transactions$article <-
+  gsub("[\\b)]", "", dd.no.promo.transactions$article)
+dd.no.promo.transactions$bon_id <- NULL
+dd.no.promo.transactions$date <- NULL
+colnames(dd.no.promo.transactions) <- c("products")
+dd.no.promo.transactions
+
+# Write csv.
+write.csv(
+  dd.no.promo.transactions,
+  "D:/Simeon Mihaylov/Simeon/R/Kaufland/Case/market_basket_transaction_no_promo.csv",
+  quote = FALSE,
+  row.names = FALSE
+)
+
+# Read the transactions data.
+tr.no.promo <-
+  read.transactions(
+    "D:/Simeon Mihaylov/Simeon/R/Kaufland/Case/market_basket_transaction_no_promo.csv",
+    format = "basket",
+    sep = ","
+  )
+
+# Transform into transaction object
+trObj <- as(tr.no.promo, "transactions")
+summary(trObj)
+summary(tr.no.promo)
+
+# Create an item frequency plot for the top 20 items.
+windows()
+itemFrequencyPlot(
+  tr.no.promo,
+  topN = 20,
+  type = "absolute",
+  col = brewer.pal(8, "Pastel2"),
+  main = "Absolute Product Frequency Plot"
+)
+
+# Generating rules. Min support as 0.001, confidence as 0.8.
+no.promo.association.rules <-
+  apriori(tr.no.promo, parameter = list(
+    supp = 0.001,
+    conf = 0.8,
+    maxlen = 10
+  ))
+summary(no.promo.association.rules)
+
+# Let's print top 10 rules.
+inspect(no.promo.association.rules[1:10])
+
+# Limit the number and size of rules generated.
+no.promo.short.association.rules <-
+  apriori(tr.no.promo, parameter = list(
+    supp = 0.001,
+    conf = 0.8,
+    maxlen = 3
+  ))
+
+# Remove redundant rules.
+no.promo.subset.rules <-
+  which(colSums(
+    is.subset(no.promo.association.rules, no.promo.association.rules)
+  ) > 1)
+length(no.promo.subset.rules)
+subset.no.promo.association.rules <-
+  no.promo.association.rules[-no.promo.subset.rules]
+
+# Filter rules with confidence greater than 0.4/ 40%.
+no.promo.subRules <-
+  no.promo.association.rules[quality(no.promo.association.rules)$confidence > 0.4]
+plot(no.promo.subRules)
+#
+plot(no.promo.subRules, method = "two-key plot")
+
+# Top 10 rules.
+no.promo.subRules.top10 <-
+  head(no.promo.subRules, n = 10, by = "confidence")
+windows()
+plot(no.promo.subRules.top10,
+     method = "graph",
+     engine = "htmlwidget")
+
+# Filter top 20 rules.
+no.promo.subRules.top20 <-
+  head(no.promo.subRules , n = 20, by = "lift")
+windows()
+plot(no.promo.subRules.top20, method = "paracoord")
+
+# [2] promo: ----
+dd.promo <- dd.merge[which(dd.merge$promo_type == "promo"), ]
+colnames(dd.promo)
+dd.promo <- dd.promo[,-c(2, 4, 8, 10, 12, 13, 15, 16)]
+colnames(dd.promo)[colnames(dd.promo) == "a.bon_id"] <-
+  "bon_id"
+colnames(dd.promo)[colnames(dd.promo) == "price_c"] <- "price"
+colnames(dd.promo)[colnames(dd.promo) == "date_time.x"] <-
+  "date_time"
+colnames(dd.promo)[colnames(dd.promo) == "article_mother"] <-
+  "article"
+colnames(dd.promo)[colnames(dd.promo) == "qty"] <- "quantity"
+
+# Convert character data into date.
+dd.promo$Date <- as.Date(dd.promo$date_time)
+dd.promo$date_time <-
+  as.POSIXlt(dd.promo$date_time, tz = "", "%Y-%m-%d %H:%M:%S")
+
+# Extract time from date_time and store it into a different variable.
+dd.promo.TranTime <- format(dd.promo$date_time, "%H:%M:%S")
+
+# Convert and edit bon_id into a numeric variable.
+dd.promo$bon_id <- gsub("[^0-9]", "", dd.promo$bon_id)
+dd.promo.bon_id <- as.numeric(as.character(dd.promo$bon_id))
+
+# Bind new columns TransTime and Bon.id into the dataframe dd.promo.
+cbind(dd.promo, dd.promo.TranTime, dd.promo.bon_id)
+
+# Glimpse of the data
+dd.promo$article <- as.character(dd.promo$article)
+glimpse(dd.promo)
+
+# Combine all the products from one Bon.id and Date and combine all products from that Bon.id and Date as one row, with each item, separated by a comma.
+dd.promo.transactions = dd.promo %>%
+  group_by(bon_id) %>%
+  summarise(date = Date[1],
+            article = list(article))
+dd.promo.transactions$article <-
+  as.character(dd.promo.transactions$article)
+dd.promo.transactions$article <-
+  gsub("[a-z]", "", dd.promo.transactions$article)
+dd.promo.transactions$article <-
+  gsub("[\\b(]", "", dd.promo.transactions$article)
+dd.promo.transactions$article <-
+  gsub("[\\b)]", "", dd.promo.transactions$article)
+dd.promo.transactions$bon_id <- NULL
+dd.promo.transactions$date <- NULL
+colnames(dd.promo.transactions) <- c("products")
+dd.promo.transactions
+
+# Write csv.
+write.csv(
+  dd.promo.transactions,
+  "D:/Simeon Mihaylov/Simeon/R/Kaufland/Case/market_basket_transaction_promo.csv",
+  quote = FALSE,
+  row.names = FALSE
+)
+
+# Read the transactions data.
+tr.promo <-
+  read.transactions(
+    "D:/Simeon Mihaylov/Simeon/R/Kaufland/Case/market_basket_transaction_promo.csv",
+    format = "basket",
+    sep = ","
+  )
+
+# Transform into transaction object
+trObj <- as(tr.promo, "transactions")
+summary(trObj)
+summary(tr.promo)
+
+# Create an item frequency plot for the top 20 items.
+windows()
+itemFrequencyPlot(
+  tr.promo,
+  topN = 20,
+  type = "absolute",
+  col = brewer.pal(8, "Pastel2"),
+  main = "Absolute Product Frequency Plot"
+)
+
+# Generating rules. Min support as 0.001, confidence as 0.8.
+promo.association.rules <-
+  apriori(tr.promo, parameter = list(
+    supp = 0.001,
+    conf = 0.8,
+    maxlen = 10
+  ))
+summary(promo.association.rules)
+
+# Let's print top 10 rules.
+inspect(promo.association.rules[1:10])
+
+# Limit the number and size of rules generated.
+promo.short.association.rules <-
+  apriori(tr.promo, parameter = list(
+    supp = 0.001,
+    conf = 0.8,
+    maxlen = 3
+  ))
+
+# Remove redundant rules.
+promo.subset.rules <-
+  which(colSums(is.subset(
+    promo.association.rules, promo.association.rules
+  )) > 1)
+length(promo.subset.rules)
+subset.promo.association.rules <-
+  promo.association.rules[-promo.subset.rules]
+
+# Filter rules with confidence greater than 0.4/ 40%.
+promo.subRules <-
+  promo.association.rules[quality(promo.association.rules)$confidence > 0.4]
+plot(promo.subRules)
+#
+plot(promo.subRules, method = "two-key plot")
+
+# Top 10 rules.
+promo.subRules.top10 <-
+  head(promo.subRules, n = 10, by = "confidence")
+windows()
+plot(promo.subRules.top10, method = "graph", engine = "htmlwidget")
+
+# Filter top 20 rules.
+promo.subRules.top20 <- head(promo.subRules , n = 20, by = "lift")
+windows()
+plot(promo.subRules.top20, method = "paracoord")
+
+# [3] bonus_buy: ----
+dd.bonus_buy <-
+  dd.merge[which(dd.merge$bonus_buy_type == "bonus_buy"), ]
+colnames(dd.bonus_buy)
+dd.bonus_buy <- dd.bonus_buy[,-c(2, 4, 8, 10, 12, 13, 15, 16)]
+colnames(dd.bonus_buy)[colnames(dd.bonus_buy) == "a.bon_id"] <-
+  "bon_id"
+colnames(dd.bonus_buy)[colnames(dd.bonus_buy) == "price_c"] <-
+  "price"
+colnames(dd.bonus_buy)[colnames(dd.bonus_buy) == "date_time.x"] <-
+  "date_time"
+colnames(dd.bonus_buy)[colnames(dd.bonus_buy) == "article_mother"] <-
+  "article"
+colnames(dd.bonus_buy)[colnames(dd.bonus_buy) == "qty"] <-
+  "quantity"
+
+# Convert character data into date.
+dd.bonus_buy$Date <- as.Date(dd.bonus_buy$date_time)
+dd.bonus_buy$date_time <-
+  as.POSIXlt(dd.bonus_buy$date_time, tz = "", "%Y-%m-%d %H:%M:%S")
+
+# Extract time from date_time and store it into a different variable.
+dd.bonus_buy.TranTime <- format(dd.bonus_buy$date_time, "%H:%M:%S")
+
+# Convert and edit bon_id into a numeric variable.
+dd.bonus_buy$bon_id <- gsub("[^0-9]", "", dd.bonus_buy$bon_id)
+dd.bonus_buy.bon_id <- as.numeric(as.character(dd.bonus_buy$bon_id))
+
+# Bind new columns TransTime and Bon.id into the dataframe dd.bonus_buy.
+cbind(dd.bonus_buy, dd.bonus_buy.TranTime, dd.bonus_buy.bon_id)
+
+# Glimpse of the data
+dd.bonus_buy$article <- as.character(dd.bonus_buy$article)
+glimpse(dd.bonus_buy)
+
+# Combine all the products from one Bon.id and Date and combine all products from that Bon.id and Date as one row, with each item, separated by a comma.
+dd.bonus_buy.transactions = dd.bonus_buy %>%
+  group_by(bon_id) %>%
+  summarise(date = Date[1],
+            article = list(article))
+dd.bonus_buy.transactions$article <-
+  as.character(dd.bonus_buy.transactions$article)
+dd.bonus_buy.transactions$article <-
+  gsub("[a-z]", "", dd.bonus_buy.transactions$article)
+dd.bonus_buy.transactions$article <-
+  gsub("[\\b(]", "", dd.bonus_buy.transactions$article)
+dd.bonus_buy.transactions$article <-
+  gsub("[\\b)]", "", dd.bonus_buy.transactions$article)
+dd.bonus_buy.transactions$bon_id <- NULL
+dd.bonus_buy.transactions$date <- NULL
+colnames(dd.bonus_buy.transactions) <- c("products")
+dd.bonus_buy.transactions
+
+# Write csv.
+write.csv(
+  dd.bonus_buy.transactions,
+  "D:/Simeon Mihaylov/Simeon/R/Kaufland/Case/market_basket_transaction_bonus_buy.csv",
+  quote = FALSE,
+  row.names = FALSE
+)
+
+# Read the transactions data.
+tr.bonus_buy <-
+  read.transactions(
+    "D:/Simeon Mihaylov/Simeon/R/Kaufland/Case/market_basket_transaction_bonus_buy.csv",
+    format = "basket",
+    sep = ","
+  )
+
+# Transform into transaction object
+trObj <- as(tr.bonus_buy, "transactions")
+summary(trObj)
+summary(tr.bonus_buy)
+
+# Create an item frequency plot for the top 20 items.
+windows()
+itemFrequencyPlot(
+  tr.bonus_buy,
+  topN = 20,
+  type = "absolute",
+  col = brewer.pal(8, "Pastel2"),
+  main = "Absolute Product Frequency Plot"
+)
+
+# Generating rules. Min support as 0.001, confidence as 0.8.
+bonus_buy.association.rules <-
+  apriori(tr.bonus_buy, parameter = list(
+    supp = 0.001,
+    conf = 0.8,
+    maxlen = 10
+  ))
+summary(bonus_buy.association.rules)
+
+# Let's print top 10 rules.
+inspect(bonus_buy.association.rules[1:10])
+
+# Limit the number and size of rules generated.
+bonus_buy.short.association.rules <-
+  apriori(tr.bonus_buy, parameter = list(
+    supp = 0.001,
+    conf = 0.8,
+    maxlen = 3
+  ))
+
+# Remove redundant rules.
+bonus_buy.subset.rules <-
+  which(colSums(
+    is.subset(bonus_buy.association.rules, bonus_buy.association.rules)
+  ) > 1)
+length(bonus_buy.subset.rules)
+subset.bonus_buy.association.rules <-
+  bonus_buy.association.rules[-bonus_buy.subset.rules]
+
+# Filter rules with confidence greater than 0.4/ 40%.
+bonus_buy.subRules <-
+  bonus_buy.association.rules[quality(bonus_buy.association.rules)$confidence > 0.4]
+plot(bonus_buy.subRules)
+#
+plot(bonus_buy.subRules, method = "two-key plot")
+
+# Top 10 rules.
+bonus_buy.subRules.top10 <-
+  head(bonus_buy.subRules, n = 10, by = "confidence")
+windows()
+plot(bonus_buy.subRules.top10,
+     method = "graph",
+     engine = "htmlwidget")
+
+# Filter top 20 rules.
+bonus_buy.subRules.top20 <-
+  head(bonus_buy.subRules , n = 20, by = "lift")
+windows()
+plot(bonus_buy.subRules.top20, method = "paracoord")
