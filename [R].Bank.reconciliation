@@ -1,0 +1,1079 @@
+# Libraries, additional functions and setting the environment. ----
+rm(list = ls())
+start_time <- Sys.time()
+if (!require(tabulizer)) {
+  install.packages("tabulizer")
+  library(tabulizer)
+}
+if (!require(pdftools)) {
+  install.packages("pdftools")
+  library(pdftools)
+} # for reading pdf
+if (!require(magick)) {
+  install.packages("magick")
+  library(magick)
+} # cropping pictures
+if (!require(plyr)) {
+  install.packages("plyr")
+  library(plyr)
+}
+if (!require(dplyr)) {
+  install.packages("dplyr")
+  library(dplyr)
+}
+if (!require(writexl)) {
+  install.packages("writexl")
+  library(writexl)
+}
+if (!require(xlsx)) {
+  install.packages("xlsx")
+  library(xlsx)
+}
+if (!require(ggplot2)) {
+  install.packages("ggplot2")
+  library(ggplot2)
+} # converting xlsx into png
+if (!require(gridExtra)) {
+  install.packages("gridExtra")
+  library(gridExtra)
+} # converting xlsx into png
+if (!require(readxl)) {
+  install.packages("readxl")
+  library(readxl)
+}
+if (!require(quantmod)) {
+  install.packages("quantmod")
+  library(quantmod)
+}
+if (!require(KeyboardSimulator)) {
+  install.packages("KeyboardSimulator")
+  library(KeyboardSimulator)
+}
+if (!require(openxlsx)) {
+  install.packages("openxlsx")
+  library(openxlsx)
+}
+if (!require(formattable)) {
+  install.packages("formattable")
+  library(formattable)
+} # used for formatting the numebrs into accounting data
+if (!require(tibble)) {
+  install.packages("tibble")
+  library(tibble)
+}
+if (!require(tidyverse)) {
+  install.packages("tidyverse")
+  library(tidyverse)
+}
+if (!require(data.table)) {
+  install.packages("data.table")
+  library(data.table)
+}
+
+setwd("D:\\Simeon Mihaylov\\Simeon\\R\\Table from pdf")
+
+right = function (string, char) {
+  substr(string, nchar(string) - (char - 1), nchar(string))
+}
+
+# Extract the bank information from ZFG1000. ----
+mouse.get_cursor()
+mouse.move(52, 1057, duration = 0.05, step_ratio = 0.01)
+mouse.click(button = "left", hold = FALSE)
+Sys.sleep(0.2)
+keybd.press("s", hold = FALSE)
+keybd.press("a", hold = FALSE)
+keybd.press("p", hold = FALSE)
+Sys.sleep(1)
+keybd.press("enter", hold = FALSE)
+Sys.sleep(6)
+
+keybd.press("ctrl", hold = TRUE)
+keybd.press("f", hold = FALSE)
+keybd.release("ctrl")
+
+keybd.press("z", hold = FALSE)
+keybd.press("f", hold = FALSE)
+keybd.press("g", hold = FALSE)
+keybd.press("1", hold = FALSE)
+keybd.press("enter", hold = FALSE)
+Sys.sleep(1)
+
+keybd.press("s", hold = FALSE)
+keybd.press("s", hold = FALSE)
+keybd.press("v", hold = FALSE)
+keybd.press("e", hold = FALSE)
+keybd.press("t", hold = FALSE)
+keybd.press("o", hold = FALSE)
+keybd.press("s", hold = FALSE)
+keybd.press("l", hold = FALSE)
+keybd.press("a", hold = FALSE)
+keybd.press("m", hold = FALSE)
+keybd.press("shift", hold = TRUE)
+keybd.press("@", hold = FALSE)
+keybd.release("shift")
+keybd.press("2", hold = FALSE)
+keybd.press("enter", hold = FALSE)
+Sys.sleep(13)
+
+keybd.press("tab", hold = FALSE)
+keybd.press("4", hold = FALSE)
+keybd.press("b", hold = FALSE)
+keybd.press("6", hold = FALSE)
+keybd.press("a", hold = FALSE)
+keybd.press("tab", hold = FALSE)
+keybd.press("4", hold = FALSE)
+keybd.press("b", hold = FALSE)
+keybd.press("6", hold = FALSE)
+keybd.press("b", hold = FALSE)
+keybd.press("tab", hold = FALSE)
+keybd.press("tab", hold = FALSE)
+keybd.press("tab", hold = FALSE)
+
+# ZFG1000 for previous day.
+keybd.press("2", hold = FALSE)
+keybd.press("0", hold = FALSE)
+keybd.press("2", hold = FALSE)
+keybd.press("1", hold = FALSE)
+keybd.press(".", hold = FALSE)
+keybd.press("0", hold = FALSE)
+keybd.press("1", hold = FALSE)
+keybd.press(".", hold = FALSE)
+keybd.press("2", hold = FALSE) # check the date !
+keybd.press("6", hold = FALSE) # check the date !
+
+keybd.press("f8", hold = FALSE)
+Sys.sleep(8)
+
+keybd.press("alt", hold = FALSE)
+keybd.press("down", hold = FALSE)
+keybd.press("down", hold = FALSE)
+keybd.press("down", hold = FALSE)
+keybd.press("down", hold = FALSE)
+keybd.press("down", hold = FALSE)
+keybd.press("enter", hold = FALSE)
+Sys.sleep(5)
+keybd.press("tab", hold = FALSE)
+keybd.press("tab", hold = FALSE)
+keybd.press("enter", hold = FALSE)
+Sys.sleep(2)
+
+keybd.press("shift", hold = TRUE)
+keybd.press("tab", hold = FALSE)
+keybd.press("tab", hold = FALSE)
+keybd.press("tab", hold = FALSE)
+keybd.release("shift")
+keybd.press("r", hold = FALSE)
+keybd.press("enter", hold = FALSE)
+Sys.sleep(0.5)
+keybd.press("tab", hold = FALSE)
+keybd.press("t", hold = FALSE)
+keybd.press("a", hold = FALSE)
+keybd.press("enter", hold = FALSE)
+Sys.sleep(0.5)
+keybd.press("b", hold = FALSE)
+keybd.press("s", hold = FALSE)
+keybd.press(".", hold = FALSE)
+keybd.press("p", hold = FALSE)
+keybd.press("enter", hold = FALSE)
+Sys.sleep(0.5)
+keybd.press("left", hold = FALSE)
+keybd.press("enter", hold = FALSE)
+Sys.sleep(2)
+keybd.press("ctrl", hold = TRUE)
+keybd.press("q", hold = FALSE)
+keybd.release("ctrl")
+Sys.sleep(2)
+
+# ZFG1000 for today.
+keybd.press("tab", hold = FALSE)
+keybd.press("tab", hold = FALSE)
+keybd.press("tab", hold = FALSE)
+keybd.press("tab", hold = FALSE)
+keybd.press("2", hold = FALSE)
+keybd.press("0", hold = FALSE)
+keybd.press("2", hold = FALSE)
+keybd.press("1", hold = FALSE)
+keybd.press(".", hold = FALSE)
+keybd.press("0", hold = FALSE)
+keybd.press("1", hold = FALSE)
+keybd.press(".", hold = FALSE)
+keybd.press("2", hold = FALSE) # check the date !
+keybd.press("7", hold = FALSE) # check the date !
+
+keybd.press("f8", hold = FALSE)
+Sys.sleep(8)
+
+keybd.press("alt", hold = FALSE)
+keybd.press("down", hold = FALSE)
+keybd.press("down", hold = FALSE)
+keybd.press("down", hold = FALSE)
+keybd.press("down", hold = FALSE)
+keybd.press("down", hold = FALSE)
+keybd.press("enter", hold = FALSE)
+Sys.sleep(5)
+keybd.press("tab", hold = FALSE)
+keybd.press("tab", hold = FALSE)
+keybd.press("enter", hold = FALSE)
+Sys.sleep(2)
+
+keybd.press("shift", hold = TRUE)
+keybd.press("tab", hold = FALSE)
+keybd.press("tab", hold = FALSE)
+keybd.press("tab", hold = FALSE)
+keybd.release("shift")
+keybd.press("r", hold = FALSE)
+keybd.press("enter", hold = FALSE)
+Sys.sleep(0.5)
+keybd.press("tab", hold = FALSE)
+keybd.press("t", hold = FALSE)
+keybd.press("a", hold = FALSE)
+keybd.press("enter", hold = FALSE)
+Sys.sleep(0.5)
+keybd.press("b", hold = FALSE)
+keybd.press("s", hold = FALSE)
+keybd.press(".", hold = FALSE)
+keybd.press("t", hold = FALSE)
+keybd.press("enter", hold = FALSE)
+Sys.sleep(0.5)
+keybd.press("left", hold = FALSE)
+keybd.press("enter", hold = FALSE)
+Sys.sleep(2)
+keybd.press("ctrl", hold = TRUE)
+keybd.press("q", hold = FALSE)
+keybd.release("ctrl")
+Sys.sleep(2)
+
+# Extract and import ZTCB002. ----
+mouse.move(52, 1057, duration = 0.05, step_ratio = 0.01)
+mouse.click(button = "left", hold = FALSE)
+Sys.sleep(0.2)
+keybd.press("s", hold = FALSE)
+keybd.press("a", hold = FALSE)
+keybd.press("p", hold = FALSE)
+Sys.sleep(1)
+keybd.press("enter", hold = FALSE)
+Sys.sleep(6)
+
+keybd.press("ctrl", hold = TRUE)
+keybd.press("f", hold = FALSE)
+keybd.release("ctrl")
+
+keybd.press("backspace", hold = FALSE)
+keybd.press("backspace", hold = FALSE)
+keybd.press("backspace", hold = FALSE)
+keybd.press("backspace", hold = FALSE)
+
+keybd.press("z", hold = FALSE)
+keybd.press("t", hold = FALSE)
+keybd.press("enter", hold = FALSE)
+Sys.sleep(3)
+
+# keybd.press("s", hold = FALSE)
+# keybd.press("s", hold = FALSE)
+# keybd.press("v", hold = FALSE)
+# keybd.press("e", hold = FALSE)
+# keybd.press("t", hold = FALSE)
+# keybd.press("o", hold = FALSE)
+# keybd.press("s", hold = FALSE)
+# keybd.press("l", hold = FALSE)
+# keybd.press("a", hold = FALSE)
+# keybd.press("m", hold = FALSE)
+# keybd.press("shift", hold = TRUE)
+# keybd.press("@", hold = FALSE)
+# keybd.release("shift")
+# keybd.press("2", hold = FALSE)
+# keybd.press("enter", hold = FALSE)
+# Sys.sleep(10)
+
+keybd.press("tab", hold = FALSE)
+keybd.press("tab", hold = FALSE)
+keybd.press("tab", hold = FALSE)
+keybd.press("tab", hold = FALSE)
+keybd.press("tab", hold = FALSE)
+keybd.press("tab", hold = FALSE)
+keybd.press("tab", hold = FALSE)
+keybd.press("2", hold = FALSE)
+keybd.press("0", hold = FALSE)
+keybd.press("2", hold = FALSE)
+keybd.press("1", hold = FALSE)
+keybd.press(".", hold = FALSE)
+keybd.press("0", hold = FALSE)
+keybd.press("1", hold = FALSE)
+keybd.press(".", hold = FALSE)
+keybd.press("2", hold = FALSE) # check the date !
+keybd.press("6", hold = FALSE) # check the date !
+keybd.press("tab", hold = FALSE)
+keybd.press("tab", hold = FALSE)
+keybd.press("tab", hold = FALSE)
+keybd.press("tab", hold = FALSE)
+keybd.press("tab", hold = FALSE)
+keybd.press(" ", hold = FALSE)
+keybd.press("f8", hold = FALSE)
+Sys.sleep(5)
+
+keybd.press("ctrl", hold = TRUE)
+keybd.press("shift", hold = TRUE)
+keybd.press("f7", hold = FALSE)
+keybd.release("ctrl")
+keybd.release("shift")
+Sys.sleep(5)
+
+# keybd.press("tab", hold = FALSE)
+# keybd.press("e", hold = FALSE)
+# keybd.press("down", hold = FALSE)
+# keybd.press("enter", hold = FALSE)
+# Sys.sleep(0.5)
+# keybd.press("enter", hold = FALSE)
+# Sys.sleep(5)
+
+keybd.press("shift", hold = TRUE)
+keybd.press("tab", hold = FALSE)
+keybd.press("tab", hold = FALSE)
+keybd.press("tab", hold = FALSE)
+keybd.release("shift")
+keybd.press(" ", hold = FALSE)
+Sys.sleep(0.5)
+
+keybd.press("tab", hold = FALSE)
+keybd.press("r", hold = FALSE)
+keybd.press("enter", hold = FALSE)
+Sys.sleep(0.5)
+
+keybd.press("t", hold = FALSE)
+keybd.press("a", hold = FALSE)
+keybd.press("enter", hold = FALSE)
+Sys.sleep(1)
+keybd.press("enter", hold = FALSE)
+Sys.sleep(2)
+keybd.press("left", hold = FALSE)
+keybd.press("enter", hold = FALSE)
+Sys.sleep(5)
+
+ztcb002 <- read.xlsx("export.xlsx", 1)
+ztcb002$Statement.Date <- as.Date(ztcb002$Statement.Date)
+ztcb002$Statement.Date <-
+  replace(ztcb002$Statement.Date, 1:9, Sys.Date() - 1)
+ztcb002 <- ztcb002[-10, ]
+
+# Extracting the information from previous day (ZFG1000). ----
+location.previous.day <-
+  'D:\\Simeon Mihaylov\\Simeon\\R\\Table from pdf\\bs.previous.day.pdf'
+bs.previous.day.list.RO <- extract_tables(location.previous.day, 1)
+bs.previous.day.list.RO[[1]] <- NULL
+bs.previous.day.list.RO[[1]] <- NULL
+bs.previous.day.RO <-
+  do.call(rbind.data.frame, bs.previous.day.list.RO)
+bs.previous.day.RO <-
+  bs.previous.day.RO[c(2, 4, 6, 9, 14, 17, 18), -4]
+colnames(bs.previous.day.RO) <-
+  c(
+    "House Bank House Bank Text",
+    "HB Acc.ID",
+    "Bank Acc. No",
+    "Bal. Carryforward",
+    "Debit Amount",
+    "Credit Amount",
+    "Balance"
+  )
+bs.previous.day.RO$Balance <-
+  gsub("\\b,",
+       "",
+       bs.previous.day.RO$Balance)
+bs.previous.day.RO$Balance <-
+  sub("^(.*)-$", "-\\1", bs.previous.day.RO$Balance) # change to negative number
+bs.previous.day.RO$Balance <- as.numeric(bs.previous.day.RO$Balance)
+
+bs.previous.day.list.BG <- extract_tables(location.previous.day, 2)
+bs.previous.day.list.BG[[1]] <- NULL
+bs.previous.day.list.BG[[1]] <- NULL
+bs.previous.day.BG <-
+  do.call(rbind.data.frame, bs.previous.day.list.BG)
+bs.previous.day.BG <- bs.previous.day.BG[c(2, 5, 9, 12), -4]
+colnames(bs.previous.day.BG) <-
+  c(
+    "House Bank House Bank Text",
+    "HB Acc.ID",
+    "Bank Acc. No",
+    "Bal. Carryforward",
+    "Debit Amount",
+    "Credit Amount",
+    "Balance"
+  )
+bs.previous.day.BG$Balance <-
+  gsub("\\b,",
+       "",
+       bs.previous.day.BG$Balance)
+bs.previous.day.BG$Balance <-
+  sub("^(.*)-$", "-\\1", bs.previous.day.BG$Balance) # change to negative number
+bs.previous.day.BG$Balance <- as.numeric(bs.previous.day.BG$Balance)
+
+# Extracting the information from today (ZFG1000). ----
+location.today <-
+  'D:\\Simeon Mihaylov\\Simeon\\R\\Table from pdf\\bs.today.pdf'
+bs.today.list.RO <- extract_tables(location.today, 1)
+bs.today.list.RO[[1]] <- NULL
+bs.today.list.RO[[1]] <- NULL
+bs.today.RO <- do.call(rbind.data.frame, bs.today.list.RO)
+bs.today.RO <- bs.today.RO[c(2, 4, 6, 9, 14, 17, 18), -4]
+colnames(bs.today.RO) <-
+  c(
+    "House Bank House Bank Text",
+    "HB Acc.ID",
+    "Bank Acc. No",
+    "Bal. Carryforward",
+    "Debit Amount",
+    "Credit Amount",
+    "Balance"
+  )
+bs.today.RO$Balance <-
+  gsub("\\b,",
+       "",
+       bs.today.RO$Balance)
+bs.today.RO$Balance <-
+  sub("^(.*)-$", "-\\1", bs.today.RO$Balance) # change to negative number
+bs.today.RO$Balance <- as.numeric(bs.today.RO$Balance)
+
+bs.today.list.BG <- extract_tables(location.today, 2)
+bs.today.list.BG[[1]] <- NULL
+bs.today.list.BG[[1]] <- NULL
+bs.today.BG <- do.call(rbind.data.frame, bs.today.list.BG)
+bs.today.BG <- bs.today.BG[c(2, 5, 9, 12), -4]
+colnames(bs.today.BG) <-
+  c(
+    "House Bank House Bank Text",
+    "HB Acc.ID",
+    "Bank Acc. No",
+    "Bal. Carryforward",
+    "Debit Amount",
+    "Credit Amount",
+    "Balance"
+  )
+bs.today.BG$Balance <-
+  gsub("\\b,",
+       "",
+       bs.today.BG$Balance)
+
+bs.today.BG$Balance <-
+  sub("^(.*)-$", "-\\1", bs.today.BG$Balance) # change to negative number
+
+bs.today.BG$Balance <- as.numeric(bs.today.BG$Balance)
+
+# Load the latest bank statement and extract the information from it. ----
+# Below line is for splitting a list of tibbles into tibbles.
+# for (i in seq_along(bank.statement.today)){
+#   assign(paste0("bank.statement.today.page.", i), bank.statement.today[[i]])
+# }
+# Below line is to group files with similar names.
+# megaframe.list <- mget(ls(pattern = "^bank.statement.today.page."))
+
+bank.statement.today <- pdf_text("latest.bank.statement.pdf")
+bank.statement.today.split <- bank.statement.today %>%
+  str_split(pattern = "\r\n") %>%
+  unlist()
+
+bank.statement.today.split.df <-
+  data.frame(bank.statement.today.split)
+
+bank.statement.today.split.df.closing.balances <-
+  bank.statement.today.split.df[bank.statement.today.split.df$bank.statement.today.split %like% "Current / Closing Ledger Balance",]
+
+right = function (string, char) {
+  substr(string, nchar(string) - (char - 1), nchar(string))
+}
+
+bank.statement.today.split.df.closing.balances.amounts <-
+  right(bank.statement.today.split.df.closing.balances, 16)
+
+bank.statement.today.split.df.closing.balances.amounts <-
+  data.frame(bank.statement.today.split.df.closing.balances.amounts)
+
+bank.statement.today.split.df.closing.balances.amounts[3,] <-
+  str_extract_all(bank.statement.today.split.df.closing.balances.amounts[3,],
+                  "\\(?[0-9,.-]+\\)?")
+
+bank.statement.today.split.df.closing.balances.amounts[1,] <-
+  str_replace_all(
+    bank.statement.today.split.df.closing.balances.amounts[1,],
+    pattern = " =",
+    replacement = ""
+  )
+bank.statement.today.split.df.closing.balances.amounts[1,] <-
+  str_replace_all(
+    bank.statement.today.split.df.closing.balances.amounts[1,],
+    pattern = ",",
+    replacement = ""
+  )
+bank.statement.today.split.df.closing.balances.amounts[1, ] <-
+  str_replace_all(
+    bank.statement.today.split.df.closing.balances.amounts[1, ],
+    pattern = " ",
+    replacement = ""
+  )
+bank.statement.today.split.df.closing.balances.amounts[1,] <-
+  sub("^(.*)-$",
+      "-\\1",
+      bank.statement.today.split.df.closing.balances.amounts[1,])
+bank.statement.today.split.df.closing.balances.amounts[1, ] <-
+  as.numeric(bank.statement.today.split.df.closing.balances.amounts[1, ])
+
+
+bank.statement.today.split.df.closing.balances.amounts[2,] <-
+  str_replace_all(
+    bank.statement.today.split.df.closing.balances.amounts[2,],
+    pattern = " =",
+    replacement = ""
+  )
+bank.statement.today.split.df.closing.balances.amounts[2,] <-
+  str_replace_all(
+    bank.statement.today.split.df.closing.balances.amounts[2,],
+    pattern = ",",
+    replacement = ""
+  )
+bank.statement.today.split.df.closing.balances.amounts[2, ] <-
+  str_replace_all(
+    bank.statement.today.split.df.closing.balances.amounts[2, ],
+    pattern = " ",
+    replacement = ""
+  )
+bank.statement.today.split.df.closing.balances.amounts[2,] <-
+  sub("^(.*)-$",
+      "-\\1",
+      bank.statement.today.split.df.closing.balances.amounts[2,])
+bank.statement.today.split.df.closing.balances.amounts[2, ] <-
+  as.numeric(bank.statement.today.split.df.closing.balances.amounts[2, ])
+
+
+bank.statement.today.split.df.closing.balances.amounts[3,] <-
+  str_replace_all(
+    bank.statement.today.split.df.closing.balances.amounts[3,],
+    pattern = " =",
+    replacement = ""
+  )
+bank.statement.today.split.df.closing.balances.amounts[3,] <-
+  str_replace_all(
+    bank.statement.today.split.df.closing.balances.amounts[3,],
+    pattern = ",",
+    replacement = ""
+  )
+bank.statement.today.split.df.closing.balances.amounts[3, ] <-
+  str_replace_all(
+    bank.statement.today.split.df.closing.balances.amounts[3, ],
+    pattern = " ",
+    replacement = ""
+  )
+bank.statement.today.split.df.closing.balances.amounts[3,] <-
+  sub("^(.*)-$",
+      "-\\1",
+      bank.statement.today.split.df.closing.balances.amounts[3,])
+bank.statement.today.split.df.closing.balances.amounts[3, ] <-
+  as.numeric(bank.statement.today.split.df.closing.balances.amounts[3, ])
+
+bank.statement.today.split.df.closing.balances.amounts[4,] <-
+  str_replace_all(
+    bank.statement.today.split.df.closing.balances.amounts[4,],
+    pattern = " =",
+    replacement = ""
+  )
+bank.statement.today.split.df.closing.balances.amounts[4,] <-
+  str_replace_all(
+    bank.statement.today.split.df.closing.balances.amounts[4,],
+    pattern = ",",
+    replacement = ""
+  )
+bank.statement.today.split.df.closing.balances.amounts[4, ] <-
+  str_replace_all(
+    bank.statement.today.split.df.closing.balances.amounts[4, ],
+    pattern = " ",
+    replacement = ""
+  )
+bank.statement.today.split.df.closing.balances.amounts[4,] <-
+  sub("^(.*)-$",
+      "-\\1",
+      bank.statement.today.split.df.closing.balances.amounts[4,])
+bank.statement.today.split.df.closing.balances.amounts[4, ] <-
+  as.numeric(bank.statement.today.split.df.closing.balances.amounts[4, ])
+
+bank.statement.today.split.df.closing.balances.amounts[5,] <-
+  str_replace_all(
+    bank.statement.today.split.df.closing.balances.amounts[5,],
+    pattern = " =",
+    replacement = ""
+  )
+bank.statement.today.split.df.closing.balances.amounts[5,] <-
+  str_replace_all(
+    bank.statement.today.split.df.closing.balances.amounts[5,],
+    pattern = ",",
+    replacement = ""
+  )
+bank.statement.today.split.df.closing.balances.amounts[5, ] <-
+  str_replace_all(
+    bank.statement.today.split.df.closing.balances.amounts[5, ],
+    pattern = " ",
+    replacement = ""
+  )
+bank.statement.today.split.df.closing.balances.amounts[5,] <-
+  sub("^(.*)-$",
+      "-\\1",
+      bank.statement.today.split.df.closing.balances.amounts[5,])
+bank.statement.today.split.df.closing.balances.amounts[5, ] <-
+  as.numeric(bank.statement.today.split.df.closing.balances.amounts[5, ])
+
+
+bank.statement.today.split.df.closing.balances.amounts[6,] <-
+  str_replace_all(
+    bank.statement.today.split.df.closing.balances.amounts[6,],
+    pattern = " =",
+    replacement = ""
+  )
+bank.statement.today.split.df.closing.balances.amounts[6,] <-
+  str_replace_all(
+    bank.statement.today.split.df.closing.balances.amounts[6,],
+    pattern = ",",
+    replacement = ""
+  )
+bank.statement.today.split.df.closing.balances.amounts[6, ] <-
+  str_replace_all(
+    bank.statement.today.split.df.closing.balances.amounts[6, ],
+    pattern = " ",
+    replacement = ""
+  )
+bank.statement.today.split.df.closing.balances.amounts[6,] <-
+  sub("^(.*)-$",
+      "-\\1",
+      bank.statement.today.split.df.closing.balances.amounts[6,])
+bank.statement.today.split.df.closing.balances.amounts[6, ] <-
+  as.numeric(bank.statement.today.split.df.closing.balances.amounts[6, ])
+
+bank.statement.today.split.df.closing.balances.amounts <-
+  unlist(bank.statement.today.split.df.closing.balances.amounts)
+bank.statement.today.split.df.closing.balances.amounts <-
+  as.numeric(bank.statement.today.split.df.closing.balances.amounts)
+
+# Extracting info from the latest BRD statement. ----
+latest.brd <- pdf_text("latest.brd.pdf")
+latest.brd.split <- latest.brd %>%
+  str_split(pattern = "\r\n") %>%
+  unlist()
+
+latest.brd.split.df <-
+  data.frame(latest.brd.split)
+
+latest.brd.split.df <-
+  data.frame(latest.brd.split.df[latest.brd.split.df$latest.brd.split %like% "[0-9].[0-9].[0-9],[0-9]", ])
+
+latest.brd.split.df <-
+  data.frame(latest.brd.split.df[!(
+    latest.brd.split.df$latest.brd.split.df.latest.brd.split.df.latest.brd.split..like.. %like% "Tr"
+  ), ])
+
+latest.brd.split.df$latest.brd.split.df...latest.brd.split.df.latest.brd.split.df.latest.brd.split.df.latest.brd.split..like....like.. <-
+  gsub(
+    pattern = " ",
+    replacement = "*",
+    latest.brd.split.df$latest.brd.split.df...latest.brd.split.df.latest.brd.split.df.latest.brd.split.df.latest.brd.split..like....like..
+  )
+
+latest.brd.split.df[1, ] <-
+  data.frame(right(latest.brd.split.df[1, ], 36))
+
+latest.brd.split.df[2, ] <-
+  data.frame(right(latest.brd.split.df[2, ], 36))
+
+latest.brd.split.df1 <-
+  data.frame(t(data.frame(do.call(
+    "rbind", strsplit(
+      as.character(
+        latest.brd.split.df$latest.brd.split.df...latest.brd.split.df.latest.brd.split.df.latest.brd.split.df.latest.brd.split..like....like..
+      ),
+      "*",
+      fixed = TRUE
+    )
+  ))))
+
+latest.brd.split.df1.1 <- data.frame(latest.brd.split.df1$X1)
+
+latest.brd.split.df1.1 <-
+  data.frame(latest.brd.split.df1.1[latest.brd.split.df1.1$latest.brd.split.df1.X1 %like% "[0-9],[0-9]",])
+
+latest.brd.split.df1.1[1,] <-
+  str_replace_all(latest.brd.split.df1.1[1,],
+                  pattern = "[.]",
+                  replacement = "")
+
+latest.brd.split.df1.1[1,] <-
+  str_replace_all(latest.brd.split.df1.1[1,],
+                  pattern = ",",
+                  replacement = ".")
+
+latest.brd.split.df1.1[2,] <-
+  str_replace_all(latest.brd.split.df1.1[2,],
+                  pattern = "[.]",
+                  replacement = "")
+
+latest.brd.split.df1.1[2,] <-
+  str_replace_all(latest.brd.split.df1.1[2,],
+                  pattern = ",",
+                  replacement = ".")
+
+latest.brd.split.df1.2 <- data.frame(latest.brd.split.df1$X2)
+
+latest.brd.split.df1.2 <-
+  data.frame(latest.brd.split.df1.2[latest.brd.split.df1.2$latest.brd.split.df1.X2 %like% "[0-9],[0-9]", ])
+
+latest.brd.split.df1.2[3, ] <-
+  str_replace_all(latest.brd.split.df1.2[3,],
+                  pattern = "[.]",
+                  replacement = "")
+
+latest.brd.split.df1.2[3, ] <-
+  str_replace_all(latest.brd.split.df1.2[3,],
+                  pattern = ",",
+                  replacement = ".")
+
+brd.neg.movement <- as.numeric(latest.brd.split.df1.1[2, ])
+
+brd.pos.movement <- as.numeric(latest.brd.split.df1.1[1, ])
+
+brd.movement <- brd.neg.movement - brd.pos.movement
+
+brd.pre.final <- as.numeric(latest.brd.split.df1.2[3,])
+
+if (brd.movement > 0) {
+  brd <- brd.pre.final - brd.movement
+} else {
+  brd <- brd.pre.final + abs(brd.movement)
+}
+
+# Computing the reconciliation. ----
+biz.area.data <-
+  c("4B6A", "4B6A", "4B6A", "4B6A", "4B6A", "4B6B", "4B6B")
+hb.data <-
+  c("BRDE1", "CITI1", "CITI1", "CITI1", "CITI3", "CITI2", "CITI2")
+accid.data <-
+  c("L2101", "L2102", "L2103", "03103", "03101", "35101", "03103")
+ccy.data <- c("RON", "RON", "RON", "EUR", "EUR", "BGN", "EUR")
+gerp.previous.day.data <-
+  c(
+    bs.previous.day.RO$Balance[2],
+    bs.previous.day.RO$Balance[3],
+    bs.previous.day.RO$Balance[4],
+    bs.previous.day.RO$Balance[7],
+    bs.previous.day.RO$Balance[6],
+    bs.previous.day.BG$Balance[2],
+    bs.previous.day.BG$Balance[4]
+  )
+bs.previous.day.data <- c(
+  ztcb002$Ending.balance.amount[1],
+  ztcb002$Ending.balance.amount[3],
+  ztcb002$Ending.balance.amount[4],
+  ztcb002$Ending.balance.amount[2],
+  ztcb002$Ending.balance.amount[7],
+  ztcb002$Ending.balance.amount[6],
+  ztcb002$Ending.balance.amount[5]
+)
+difference.previous.day.data <- c(
+  c(bs.previous.day.RO$Balance[2] - ztcb002$Ending.balance.amount[1]),
+  c(bs.previous.day.RO$Balance[3] - ztcb002$Ending.balance.amount[3]),
+  c(bs.previous.day.RO$Balance[4] - ztcb002$Ending.balance.amount[4]),
+  c(bs.previous.day.RO$Balance[7] - ztcb002$Ending.balance.amount[2]),
+  c(bs.previous.day.RO$Balance[6] - ztcb002$Ending.balance.amount[7]),
+  c(bs.previous.day.BG$Balance[2] - ztcb002$Ending.balance.amount[6]),
+  c(bs.previous.day.BG$Balance[4] - ztcb002$Ending.balance.amount[5])
+)
+comment.previous.day.data <-
+  c("ok", "ok", "ok", "ok", "ok", "ok", "ok")
+gerp.today.data <-
+  c(
+    bs.today.RO$Balance[2],
+    bs.today.RO$Balance[3],
+    bs.today.RO$Balance[4],
+    bs.today.RO$Balance[7],
+    bs.today.RO$Balance[6],
+    bs.today.BG$Balance[2],
+    bs.today.BG$Balance[4]
+  )
+bs.today.data <-
+  c(
+    brd,
+    bank.statement.today.split.df.closing.balances.amounts[4],
+    bank.statement.today.split.df.closing.balances.amounts[3],
+    bank.statement.today.split.df.closing.balances.amounts[5],
+    bank.statement.today.split.df.closing.balances.amounts[6],
+    bank.statement.today.split.df.closing.balances.amounts[2],
+    bank.statement.today.split.df.closing.balances.amounts[1]
+  )
+difference.today.data <-
+  c(
+    c(bs.today.RO$Balance[2] - brd),
+    c(
+      bs.today.RO$Balance[3] - bank.statement.today.split.df.closing.balances.amounts[4]
+    ),
+    c(
+      bs.today.RO$Balance[4] - bank.statement.today.split.df.closing.balances.amounts[3]
+    ),
+    c(
+      bs.today.RO$Balance[7] - bank.statement.today.split.df.closing.balances.amounts[5]
+    ),
+    c(
+      bs.today.RO$Balance[6] - bank.statement.today.split.df.closing.balances.amounts[6]
+    ),
+    c(
+      bs.today.BG$Balance[2] - bank.statement.today.split.df.closing.balances.amounts[2]
+    ),
+    c(
+      bs.today.BG$Balance[4] - bank.statement.today.split.df.closing.balances.amounts[1]
+    )
+  )
+comment.today.data <- c("ok", "ok", "ok", "ok", "ok", "ok", "ok")
+bank.recon <-
+  data.frame(
+    biz.area.data,
+    hb.data,
+    accid.data,
+    ccy.data,
+    gerp.previous.day.data,
+    bs.previous.day.data,
+    difference.previous.day.data,
+    comment.previous.day.data,
+    gerp.today.data,
+    bs.today.data,
+    difference.today.data,
+    comment.today.data
+  )
+names(bank.recon) <-
+  c(
+    "Biz area",
+    "HB",
+    "AccID",
+    "CCY",
+    "GERP.previous.day",
+    "BS.previous.day",
+    "Difference.previous.day",
+    "Comment.previous.day",
+    "GERP.today",
+    "BS.today",
+    "Difference.today",
+    "Comment.today"
+  )
+
+bank.recon$GERP.previous.day <-
+  comma(
+    bank.recon$GERP.previous.day,
+    digits = 2L,
+    format = "f",
+    big.mark = ","
+  )
+bank.recon$BS.previous.day <-
+  comma(
+    bank.recon$BS.previous.day,
+    digits = 2L,
+    format = "f",
+    big.mark = ","
+  )
+bank.recon$Difference.previous.day <-
+  comma(
+    bank.recon$Difference.previous.day,
+    digits = 2L,
+    format = "f",
+    big.mark = ","
+  )
+bank.recon$GERP.today <-
+  comma(
+    bank.recon$GERP.today,
+    digits = 2L,
+    format = "f",
+    big.mark = ","
+  )
+bank.recon$BS.today <-
+  comma(
+    bank.recon$BS.today,
+    digits = 2L,
+    format = "f",
+    big.mark = ","
+  )
+bank.recon$Difference.today <-
+  comma(
+    bank.recon$Difference.today,
+    digits = 2L,
+    format = "f",
+    big.mark = ","
+  )
+
+# Extracting the "bank.recon" file. ----
+write.xlsx(bank.recon,
+           file = "bank recon.xlsx",
+           sheetName = "Bank reconciliation",
+           row.names = FALSE)
+# write.xlsx(
+#   bs.previous.day.RO,
+#   file = "bank recon.xlsx",
+#   sheetName = "bs.previous.day.RO",
+#   append = TRUE,
+#   row.names = FALSE
+# )
+# write.xlsx(
+#   bs.previous.day.BG,
+#   file = "bank recon.xlsx",
+#   sheetName = "bs.previous.day.BG",
+#   append = TRUE,
+#   row.names = FALSE
+# )
+# write.xlsx(
+#   bs.today.RO,
+#   file = "bank recon.xlsx",
+#   sheetName = "bs.today.RO",
+#   append = TRUE,
+#   row.names = FALSE
+# )
+# write.xlsx(
+#   bs.today.BG,
+#   file = "bank recon.xlsx",
+#   sheetName = "bs.today.BG",
+#   append = TRUE,
+#   row.names = FALSE
+# )
+# print(bank.recon)
+
+# Crop the needed information from the downloaded bank statements and SAP. ----
+# Previous day RO
+picture.of.previous.day.RO <-
+  pdf_convert(
+    "bs.previous.day.pdf",
+    format = "png",
+    pages = 1,
+    filenames = "picture.of.previous.day.RO.png",
+    dpi = 100,
+    antialias = TRUE,
+    verbose = TRUE
+  )
+picture.of.previous.day.RO.load <-
+  image_read("picture.of.previous.day.RO.png")
+picture.of.previous.day.RO.cropped <-
+  image_crop(picture.of.previous.day.RO.load, "796x446")
+# print(picture.of.previous.day.RO.cropped)
+image_write(picture.of.previous.day.RO.cropped,
+            path = "picture.of.previous.day.RO.cropped.png",
+            format = "png")
+
+# Previous day BG.
+picture.of.previous.day.BG <-
+  pdf_convert(
+    "bs.previous.day.pdf",
+    format = "png",
+    pages = 2,
+    filenames = "picture.of.previous.day.BG.png",
+    dpi = 100,
+    antialias = TRUE,
+    verbose = TRUE
+  )
+picture.of.previous.day.BG.load <-
+  image_read("picture.of.previous.day.BG.png")
+picture.of.previous.day.BG.cropped <-
+  image_crop(picture.of.previous.day.BG.load, "796x370")
+# print(picture.of.previous.day.BG.cropped)
+image_write(picture.of.previous.day.BG.cropped,
+            path = "picture.of.previous.day.BG.cropped.png",
+            format = "png")
+
+# Today RO.
+picture.of.today.RO <-
+  pdf_convert(
+    "bs.today.pdf",
+    format = "png",
+    pages = 1,
+    filenames = "picture.of.today.RO.png",
+    dpi = 100,
+    antialias = TRUE,
+    verbose = TRUE
+  )
+picture.of.today.RO.load <- image_read("picture.of.today.RO.png")
+picture.of.today.RO.cropped <-
+  image_crop(picture.of.today.RO.load, "796x446")
+# print(picture.of.today.RO.cropped)
+image_write(picture.of.today.RO.cropped,
+            path = "picture.of.today.RO.cropped.png",
+            format = "png")
+
+# Today BG.
+picture.of.today.BG <-
+  pdf_convert(
+    "bs.today.pdf",
+    format = "png",
+    pages = 2,
+    filenames = "picture.of.today.BG.png",
+    dpi = 100,
+    antialias = TRUE,
+    verbose = TRUE
+  )
+picture.of.today.BG.load <- image_read("picture.of.today.BG.png")
+picture.of.today.BG.cropped <-
+  image_crop(picture.of.today.BG.load, "796x370")
+# print(picture.of.today.BG.cropped)
+image_write(picture.of.today.BG.cropped,
+            path = "picture.of.today.BG.cropped.png",
+            format = "png")
+
+# ZTCB002
+ztcb002.updated <- ztcb002
+ztcb002.updated$Ending.balance.amount <-
+  accounting(ztcb002.updated$Ending.balance.amount)
+ztcb002.updated$`USD.Amount(Ending)` <-
+  accounting(ztcb002.updated$`USD.Amount(Ending)`)
+png(filename = "ztcb002.png",
+    width = 1000,
+    height = 250)
+grid.table(ztcb002.updated)
+dev.off()
+
+# Combining the extracted images with the "bank.recon" file. ----
+wb <- loadWorkbook("bank recon.xlsx", isUnzipped = FALSE)
+insertImage(
+  wb,
+  sheet = "Bank reconciliation",
+  file = "ztcb002.png",
+  width = 8,
+  height = 2,
+  startRow = 10,
+  startCol = 1
+)
+insertImage(
+  wb,
+  sheet = "Bank reconciliation",
+  file = "picture.of.previous.day.RO.cropped.png",
+  width = 7.5,
+  height = 4,
+  startRow = 20,
+  startCol = 1
+)
+insertImage(
+  wb,
+  sheet = "Bank reconciliation",
+  file = "picture.of.previous.day.BG.cropped.png",
+  width = 7.5,
+  height = 4,
+  startRow = 40,
+  startCol = 1
+)
+insertImage(
+  wb,
+  sheet = "Bank reconciliation",
+  file = "picture.of.today.RO.cropped.png",
+  width = 7.5,
+  height = 4,
+  startRow = 20,
+  startCol = 10
+)
+insertImage(
+  wb,
+  sheet = "Bank reconciliation",
+  file = "picture.of.today.BG.cropped.png",
+  width = 7.5,
+  height = 4,
+  startRow = 40,
+  startCol = 10
+)
+saveWorkbook(wb, "bank recon.xlsx", overwrite = TRUE)
+
+end_time <- Sys.time()
+end_time - start_time
