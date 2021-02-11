@@ -1,0 +1,549 @@
+# Method 1 - protocol extraction one by one. ----
+# Preparation
+rm(list = ls())
+if (!require(KeyboardSimulator)) {
+  install.packages("KeyboardSimulator")
+  library(KeyboardSimulator)
+}
+mouse.get_cursor()
+mouse.move(-1542, 16, duration = 0.05, step_ratio = 0.01)
+mouse.click("left", hold = FALSE)
+Sys.sleep(1)
+
+# 1
+keybd.press("ctrl", hold = TRUE)
+keybd.press("c", hold = FALSE)
+keybd.release("ctrl")
+
+keybd.press("shift", hold = TRUE)
+keybd.press(" ", hold = FALSE)
+keybd.release("shift")
+
+keybd.press("ctrl", hold = TRUE)
+keybd.press("shift", hold = TRUE)
+keybd.press("f10", hold = FALSE)
+keybd.release("ctrl")
+keybd.release("shift")
+Sys.sleep(6)
+
+keybd.press("ctrl", hold = TRUE)
+keybd.press("p")
+keybd.release("ctrl")
+Sys.sleep(5)
+
+keybd.press("down", hold = FALSE)
+Sys.sleep(2)
+keybd.press("enter", hold = FALSE)
+Sys.sleep(6)
+
+keybd.press("ctrl", hold = TRUE)
+keybd.press("v", hold = FALSE)
+keybd.release("ctrl")
+Sys.sleep(2)
+
+keybd.press("enter", hold = FALSE)
+Sys.sleep(2)
+
+keybd.press("f3", hold = FALSE)
+Sys.sleep(4)
+
+keybd.press("shift", hold = TRUE)
+keybd.press(" ", hold = FALSE)
+keybd.release("shift")
+
+keybd.press("down", hold = FALSE)
+keybd.press("right", hold = FALSE)
+keybd.press("right", hold = FALSE)
+keybd.press("right", hold = FALSE)
+keybd.press("right", hold = FALSE)
+
+# 2
+keybd.press("ctrl", hold = TRUE)
+keybd.press("c", hold = FALSE)
+keybd.release("ctrl")
+
+keybd.press("shift", hold = TRUE)
+keybd.press(" ", hold = FALSE)
+keybd.release("shift")
+
+keybd.press("ctrl", hold = TRUE)
+keybd.press("shift", hold = TRUE)
+keybd.press("f10", hold = FALSE)
+keybd.release("ctrl")
+keybd.release("shift")
+Sys.sleep(6)
+
+keybd.press("ctrl", hold = TRUE)
+keybd.press("p")
+keybd.release("ctrl")
+Sys.sleep(5)
+
+keybd.press("down", hold = FALSE)
+Sys.sleep(2)
+keybd.press("enter", hold = FALSE)
+Sys.sleep(6)
+
+keybd.press("ctrl", hold = TRUE)
+keybd.press("v", hold = FALSE)
+keybd.release("ctrl")
+Sys.sleep(2)
+
+keybd.press("enter", hold = FALSE)
+Sys.sleep(2)
+
+keybd.press("f3", hold = FALSE)
+Sys.sleep(4)
+
+keybd.press("shift", hold = TRUE)
+keybd.press(" ", hold = FALSE)
+keybd.release("shift")
+
+keybd.press("down", hold = FALSE)
+keybd.press("right", hold = FALSE)
+keybd.press("right", hold = FALSE)
+keybd.press("right", hold = FALSE)
+keybd.press("right", hold = FALSE)
+
+# 3
+keybd.press("ctrl", hold = TRUE)
+keybd.press("c", hold = FALSE)
+keybd.release("ctrl")
+
+keybd.press("shift", hold = TRUE)
+keybd.press(" ", hold = FALSE)
+keybd.release("shift")
+
+keybd.press("ctrl", hold = TRUE)
+keybd.press("shift", hold = TRUE)
+keybd.press("f10", hold = FALSE)
+keybd.release("ctrl")
+keybd.release("shift")
+Sys.sleep(6)
+
+keybd.press("ctrl", hold = TRUE)
+keybd.press("p")
+keybd.release("ctrl")
+Sys.sleep(5)
+
+keybd.press("down", hold = FALSE)
+Sys.sleep(2)
+keybd.press("enter", hold = FALSE)
+Sys.sleep(6)
+
+keybd.press("ctrl", hold = TRUE)
+keybd.press("v", hold = FALSE)
+keybd.release("ctrl")
+Sys.sleep(2)
+
+keybd.press("enter", hold = FALSE)
+Sys.sleep(2)
+
+keybd.press("f3", hold = FALSE)
+Sys.sleep(4)
+
+keybd.press("shift", hold = TRUE)
+keybd.press(" ", hold = FALSE)
+keybd.release("shift")
+
+keybd.press("down", hold = FALSE)
+keybd.press("right", hold = FALSE)
+keybd.press("right", hold = FALSE)
+keybd.press("right", hold = FALSE)
+keybd.press("right", hold = FALSE)
+
+# 4
+keybd.press("ctrl", hold = TRUE)
+keybd.press("c", hold = FALSE)
+keybd.release("ctrl")
+
+keybd.press("shift", hold = TRUE)
+keybd.press(" ", hold = FALSE)
+keybd.release("shift")
+
+keybd.press("ctrl", hold = TRUE)
+keybd.press("shift", hold = TRUE)
+keybd.press("f10", hold = FALSE)
+keybd.release("ctrl")
+keybd.release("shift")
+Sys.sleep(6)
+
+keybd.press("ctrl", hold = TRUE)
+keybd.press("p")
+keybd.release("ctrl")
+Sys.sleep(5)
+
+keybd.press("down", hold = FALSE)
+Sys.sleep(2)
+keybd.press("enter", hold = FALSE)
+Sys.sleep(6)
+
+keybd.press("ctrl", hold = TRUE)
+keybd.press("v", hold = FALSE)
+keybd.release("ctrl")
+Sys.sleep(2)
+
+keybd.press("enter", hold = FALSE)
+Sys.sleep(2)
+
+keybd.press("f3", hold = FALSE)
+Sys.sleep(4)
+
+keybd.press("shift", hold = TRUE)
+keybd.press(" ", hold = FALSE)
+keybd.release("shift")
+
+keybd.press("down", hold = FALSE)
+keybd.press("right", hold = FALSE)
+keybd.press("right", hold = FALSE)
+keybd.press("right", hold = FALSE)
+keybd.press("right", hold = FALSE)
+
+# 5
+keybd.press("ctrl", hold = TRUE)
+keybd.press("c", hold = FALSE)
+keybd.release("ctrl")
+
+keybd.press("shift", hold = TRUE)
+keybd.press(" ", hold = FALSE)
+keybd.release("shift")
+
+keybd.press("ctrl", hold = TRUE)
+keybd.press("shift", hold = TRUE)
+keybd.press("f10", hold = FALSE)
+keybd.release("ctrl")
+keybd.release("shift")
+Sys.sleep(6)
+
+keybd.press("ctrl", hold = TRUE)
+keybd.press("p")
+keybd.release("ctrl")
+Sys.sleep(5)
+
+keybd.press("down", hold = FALSE)
+Sys.sleep(2)
+keybd.press("enter", hold = FALSE)
+Sys.sleep(6)
+
+keybd.press("ctrl", hold = TRUE)
+keybd.press("v", hold = FALSE)
+keybd.release("ctrl")
+Sys.sleep(2)
+
+keybd.press("enter", hold = FALSE)
+Sys.sleep(2)
+
+keybd.press("f3", hold = FALSE)
+Sys.sleep(4)
+
+keybd.press("shift", hold = TRUE)
+keybd.press(" ", hold = FALSE)
+keybd.release("shift")
+
+keybd.press("down", hold = FALSE)
+keybd.press("right", hold = FALSE)
+keybd.press("right", hold = FALSE)
+keybd.press("right", hold = FALSE)
+keybd.press("right", hold = FALSE)
+
+# 6
+keybd.press("ctrl", hold = TRUE)
+keybd.press("c", hold = FALSE)
+keybd.release("ctrl")
+
+keybd.press("shift", hold = TRUE)
+keybd.press(" ", hold = FALSE)
+keybd.release("shift")
+
+keybd.press("ctrl", hold = TRUE)
+keybd.press("shift", hold = TRUE)
+keybd.press("f10", hold = FALSE)
+keybd.release("ctrl")
+keybd.release("shift")
+Sys.sleep(6)
+
+keybd.press("ctrl", hold = TRUE)
+keybd.press("p")
+keybd.release("ctrl")
+Sys.sleep(5)
+
+keybd.press("down", hold = FALSE)
+Sys.sleep(2)
+keybd.press("enter", hold = FALSE)
+Sys.sleep(6)
+
+keybd.press("ctrl", hold = TRUE)
+keybd.press("v", hold = FALSE)
+keybd.release("ctrl")
+Sys.sleep(2)
+
+keybd.press("enter", hold = FALSE)
+Sys.sleep(2)
+
+keybd.press("f3", hold = FALSE)
+Sys.sleep(4)
+
+keybd.press("shift", hold = TRUE)
+keybd.press(" ", hold = FALSE)
+keybd.release("shift")
+
+keybd.press("down", hold = FALSE)
+keybd.press("right", hold = FALSE)
+keybd.press("right", hold = FALSE)
+keybd.press("right", hold = FALSE)
+keybd.press("right", hold = FALSE)
+
+# 7
+keybd.press("ctrl", hold = TRUE)
+keybd.press("c", hold = FALSE)
+keybd.release("ctrl")
+
+keybd.press("shift", hold = TRUE)
+keybd.press(" ", hold = FALSE)
+keybd.release("shift")
+
+keybd.press("ctrl", hold = TRUE)
+keybd.press("shift", hold = TRUE)
+keybd.press("f10", hold = FALSE)
+keybd.release("ctrl")
+keybd.release("shift")
+Sys.sleep(6)
+
+keybd.press("ctrl", hold = TRUE)
+keybd.press("p")
+keybd.release("ctrl")
+Sys.sleep(5)
+
+keybd.press("down", hold = FALSE)
+Sys.sleep(2)
+keybd.press("enter", hold = FALSE)
+Sys.sleep(6)
+
+keybd.press("ctrl", hold = TRUE)
+keybd.press("v", hold = FALSE)
+keybd.release("ctrl")
+Sys.sleep(2)
+
+keybd.press("enter", hold = FALSE)
+Sys.sleep(2)
+
+keybd.press("f3", hold = FALSE)
+Sys.sleep(4)
+
+keybd.press("shift", hold = TRUE)
+keybd.press(" ", hold = FALSE)
+keybd.release("shift")
+
+keybd.press("down", hold = FALSE)
+keybd.press("right", hold = FALSE)
+keybd.press("right", hold = FALSE)
+keybd.press("right", hold = FALSE)
+keybd.press("right", hold = FALSE)
+
+# 8
+keybd.press("ctrl", hold = TRUE)
+keybd.press("c", hold = FALSE)
+keybd.release("ctrl")
+
+keybd.press("shift", hold = TRUE)
+keybd.press(" ", hold = FALSE)
+keybd.release("shift")
+
+keybd.press("ctrl", hold = TRUE)
+keybd.press("shift", hold = TRUE)
+keybd.press("f10", hold = FALSE)
+keybd.release("ctrl")
+keybd.release("shift")
+Sys.sleep(6)
+
+keybd.press("ctrl", hold = TRUE)
+keybd.press("p")
+keybd.release("ctrl")
+Sys.sleep(5)
+
+keybd.press("down", hold = FALSE)
+Sys.sleep(2)
+keybd.press("enter", hold = FALSE)
+Sys.sleep(6)
+
+keybd.press("ctrl", hold = TRUE)
+keybd.press("v", hold = FALSE)
+keybd.release("ctrl")
+Sys.sleep(2)
+
+keybd.press("enter", hold = FALSE)
+Sys.sleep(2)
+
+keybd.press("f3", hold = FALSE)
+Sys.sleep(4)
+
+keybd.press("shift", hold = TRUE)
+keybd.press(" ", hold = FALSE)
+keybd.release("shift")
+
+keybd.press("down", hold = FALSE)
+keybd.press("right", hold = FALSE)
+keybd.press("right", hold = FALSE)
+keybd.press("right", hold = FALSE)
+keybd.press("right", hold = FALSE)
+
+# 9
+keybd.press("ctrl", hold = TRUE)
+keybd.press("c", hold = FALSE)
+keybd.release("ctrl")
+
+keybd.press("shift", hold = TRUE)
+keybd.press(" ", hold = FALSE)
+keybd.release("shift")
+
+keybd.press("ctrl", hold = TRUE)
+keybd.press("shift", hold = TRUE)
+keybd.press("f10", hold = FALSE)
+keybd.release("ctrl")
+keybd.release("shift")
+Sys.sleep(6)
+
+keybd.press("ctrl", hold = TRUE)
+keybd.press("p")
+keybd.release("ctrl")
+Sys.sleep(5)
+
+keybd.press("down", hold = FALSE)
+Sys.sleep(2)
+keybd.press("enter", hold = FALSE)
+Sys.sleep(6)
+
+keybd.press("ctrl", hold = TRUE)
+keybd.press("v", hold = FALSE)
+keybd.release("ctrl")
+Sys.sleep(2)
+
+keybd.press("enter", hold = FALSE)
+Sys.sleep(2)
+
+keybd.press("f3", hold = FALSE)
+Sys.sleep(4)
+
+keybd.press("shift", hold = TRUE)
+keybd.press(" ", hold = FALSE)
+keybd.release("shift")
+
+keybd.press("down", hold = FALSE)
+keybd.press("right", hold = FALSE)
+keybd.press("right", hold = FALSE)
+keybd.press("right", hold = FALSE)
+keybd.press("right", hold = FALSE)
+
+# 10
+keybd.press("ctrl", hold = TRUE)
+keybd.press("c", hold = FALSE)
+keybd.release("ctrl")
+
+keybd.press("shift", hold = TRUE)
+keybd.press(" ", hold = FALSE)
+keybd.release("shift")
+
+keybd.press("ctrl", hold = TRUE)
+keybd.press("shift", hold = TRUE)
+keybd.press("f10", hold = FALSE)
+keybd.release("ctrl")
+keybd.release("shift")
+Sys.sleep(6)
+
+keybd.press("ctrl", hold = TRUE)
+keybd.press("p")
+keybd.release("ctrl")
+Sys.sleep(5)
+
+keybd.press("down", hold = FALSE)
+Sys.sleep(2)
+keybd.press("enter", hold = FALSE)
+Sys.sleep(6)
+
+keybd.press("ctrl", hold = TRUE)
+keybd.press("v", hold = FALSE)
+keybd.release("ctrl")
+Sys.sleep(2)
+
+keybd.press("enter", hold = FALSE)
+Sys.sleep(2)
+
+keybd.press("f3", hold = FALSE)
+Sys.sleep(4)
+
+keybd.press("shift", hold = TRUE)
+keybd.press(" ", hold = FALSE)
+keybd.release("shift")
+
+keybd.press("down", hold = FALSE)
+keybd.press("right", hold = FALSE)
+keybd.press("right", hold = FALSE)
+keybd.press("right", hold = FALSE)
+keybd.press("right", hold = FALSE)
+
+# Method2 - protocol extraction by loop. ----
+rm(list = ls())
+if (!require(KeyboardSimulator)) {
+  install.packages("KeyboardSimulator")
+  library(KeyboardSimulator)
+}
+mouse.get_cursor()
+mouse.move(-1542, 16, duration = 0.05, step_ratio = 0.01)
+mouse.click("left", hold = FALSE)
+Sys.sleep(1)
+protocols.function <- function(x) {
+  keybd.press("ctrl", hold = TRUE)
+  keybd.press("c", hold = FALSE)
+  keybd.release("ctrl")
+  
+  keybd.press("shift", hold = TRUE)
+  keybd.press(" ", hold = FALSE)
+  keybd.release("shift")
+  
+  keybd.press("ctrl", hold = TRUE)
+  keybd.press("shift", hold = TRUE)
+  keybd.press("f10", hold = FALSE)
+  keybd.release("ctrl")
+  keybd.release("shift")
+  Sys.sleep(6)
+  
+  keybd.press("ctrl", hold = TRUE)
+  keybd.press("p")
+  keybd.release("ctrl")
+  Sys.sleep(5)
+  
+  keybd.press("down", hold = FALSE)
+  Sys.sleep(2)
+  keybd.press("enter", hold = FALSE)
+  Sys.sleep(6)
+  
+  keybd.press("ctrl", hold = TRUE)
+  keybd.press("v", hold = FALSE)
+  keybd.release("ctrl")
+  Sys.sleep(2)
+  
+  keybd.press("enter", hold = FALSE)
+  Sys.sleep(2)
+  
+  keybd.press("f3", hold = FALSE)
+  Sys.sleep(4)
+  
+  keybd.press("shift", hold = TRUE)
+  keybd.press(" ", hold = FALSE)
+  keybd.release("shift")
+  
+  keybd.press("down", hold = FALSE)
+  keybd.press("right", hold = FALSE)
+  keybd.press("right", hold = FALSE)
+  keybd.press("right", hold = FALSE)
+  keybd.press("right", hold = FALSE)
+  
+}
+nu.protocols <- 1
+repeat {
+  protocols.function()
+  nu.protocols <- nu.protocols + 1
+  
+  if (nu.protocols > 19) {
+    break
+  }
+}
