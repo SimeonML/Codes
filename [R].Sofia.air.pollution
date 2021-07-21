@@ -1,0 +1,664 @@
+# Clear the workspace, install and load the required packages----
+rm(list = ls())
+install.packages(
+  c(
+    "lubridate",
+    "dplyr",
+    "imputeTS",
+    "Hmisc",
+    "psych",
+    "tseries",
+    "randomForest",
+    "leaps",
+    "glmnet",
+    "boot",
+    "xgboost",
+    "tidyverse"
+  )
+)
+library(lubridate)
+library(dplyr)
+library(imputeTS)
+library(Hmisc)
+library(psych)
+library(tseries)
+library(randomForest)
+library(leaps)
+library(glmnet)
+library(boot)
+library(xgboost)
+library(tidyverse)
+
+# Import data----
+setwd("D:\\Simeon Mihaylov\\R\\SofiaAir")
+
+# Importing the data as 1.
+file_names = list.files(path = "D:\\Simeon Mihaylov\\R\\SofiaAir")
+
+# lapply e list apply zapazvame rezultata kato list
+dd = lapply(
+  file_names,
+  read.csv,
+  na.strings = c("NA", "", " ", "-9999"),
+  stringsAsFactors = F
+)
+names(dd) = file_names
+
+# Fix obvious issues ----
+sapply(dd$st9421_2017.csv, class)
+st17 = dd$st9421_2017.csv
+st18 = dd$st9421_2018.csv
+ww = dd$weather.csv
+rm(dd, file_names)
+
+#Fix pm dataset
+#2017
+sapply(st17, class)
+st17 = st17[,-1]
+st17$time = ymd_hms(st17$time) # s tozi red ni chete datata kato data
+st17$date = date(st17$time)
+
+#2018
+sapply(st18, class)
+st18 = st18[,-1]
+st18$time = ymd_hms(st18$time) # s tozi red ni chete datata kato data
+st18$date = date(st18$time)
+
+sapply(st18, class)
+
+#check for dublicateed values
+sum(duplicated(st17$time))
+sum(duplicated(st18$time))
+
+min(st17$time)
+min(st18$time)
+
+#bind
+st = bind_rows(st17, st18)
+rm(st17, st18)
+
+dd = st %>%
+  group_by(date) %>%
+  summarise(PM10 = mean (P1eu, na.rm = T))
+
+#weather
+sapply(ww, class)
+head(ww)
+ww$date = make_date(year = ww$year,
+                    month = ww$Month,
+                    day = ww$day)
+ww$date[1:5]
+
+colSums(is.na(ww))
+which(is.na(ww$date) == T)
+ww[2101, 1:5]
+ww[2100, 1:5]
+ww[2102, 1:5]
+
+ww = ww[,!names(ww) %in% c("year", "Month", "day")]
+min(ww$date, na.rm = T)
+max(ww$date, na.rm = T)
+
+#merge data PM10 and ww
+dd = left_join(dd, ww, by = "date")
+colSums(is.na(dd))
+min(ww$date, na.rm = T)
+
+rm(st, ww)
+# Adress missing values ----
+colSums(is.na(dd))
+dd = dd[,!names(dd) %in% c("PRCPMAX", "PRCPMIN", "VISIB")]
+
+#impute missing values
+dd[,-1] = sapply(dd[,-1], na_interpolation, option = "linear")
+sum(is.na(dd))
+
+# ----
+? Hmisc::impute
+# pri prostranstvei danni zapazvame lipsvashtite stoinostite s mediana, mean, quantile
+# ili neshto drugo izpolzva se "impute" ot library(Hmisc)
+windows()
+cor.plot(cor(dd[,-1]), numbers = T, las = 2)
+
+#pairs(~.,data=dd)
+windows()
+par(mfrow = c(1, 5))
+plot(lag(dd$PM10, n = 1)[-1], dd$PM10[-1], col = 'blue', pch = 19)
+plot(dd$RHMAX, dd$PM10, pch = 19)
+plot(dd$PRCPAVG, dd$PM10, pch = 19)
+plot(dd$PSLAVG, dd$PM10, pch = 19)
+plot(dd$sfcWindMIN, dd$PM10, pch = 19)
+
+# trqbva da razdelim mnoj na ocenka i validirane 1/4 kalibrirane 3/4 validirane
+round(287 * 3 / 4) # pokazva ni kolko sa 3/4 ot observations
+
+adf.test(dd$PM10) # test za stacionarnost Dicky - Fuller pri nego Ho e nonstationary
+
+cor(lag(dd$PM10, n = 1)[-1], dd$PM10[-1])
+
+# Computing the best set----
+ddn = dd[, names(dd) %in% c("PM10",
+                            "TASMAX",
+                            "TASMIN",
+                            "sfcWindAVG",
+                            "sfcWindMIN",
+                            "RHMAX",
+                            "PSLAVG",
+                            "PRCPAVG")]
+ddn$PM_lag1 = lag(ddn$PM10, n = 1)
+ddn = ddn[-1,]
+D1 = ifelse(ddn$RHMAX == 100, 1, 0)
+D2 = ifelse(ddn$PRCPAVG == 0, 1, 0)
+D3 = ifelse(ddn$sfcWindMIN == 0, 1, 0)
+D4 = ifelse(ddn$sfcWindAVG < 6, 1, 0)
+D5 = ifelse(ddn$PM_lag1 >= 50, 1, 0)
+
+ddn$Dw = D4 * D5
+ddn$D = D1 * D2 * D3
+
+set.seed(42)
+train = sample(nrow(ddn), round(nrow(ddn) * 3 / 4))
+
+windows()
+cor.plot(cor(ddn), numbers = T, las = 2)
+
+eql = lm(PM10 ~ PM_lag1 + D + Dw + TASMIN + PSLAVG,
+         data = ddn,
+         subset = train)
+summary(eql)
+(RMSE_out_Sample_eql = sqrt(mean((
+  ddn$PM10[-train] - predict(eql, newdata = ddn[-train,])
+) ^ 2)))
+(eqlMSEout = mean((ddn$PM10[-train] - predict(eql, newdata = ddn[-train,])) ^
+                    2))
+(RMSE_in_Sample_eql = sqrt(mean((
+  ddn$PM10[train] - predict(eql, newdata = ddn[train,])
+) ^ 2)))
+
+# Random Forest----
+eql = randomForest(PM10 ~ .,
+                   data = ddn,
+                   subset = train,
+                   importance = T)
+eql$importance[, 1]
+
+y = eql$y
+predicted = eql$predicted
+1 - sum((y - predicted) ^ 2) / sum((y - mean(y)) ^ 2)
+(RMSE_out_Sample = sqrt(mean((
+  ddn$PM10[-train] - predict(eql, newdata = ddn[-train,])
+) ^ 2)))
+(eqlMSEout = mean((ddn$PM10[-train] - predict(eql, newdata = ddn[-train,])) ^
+                    2))
+
+#
+eq5 = randomForest(
+  PM10 ~ TASMAX + TASMIN + PM_lag1 + D + Dw,
+  data = ddn,
+  subset = train,
+  importance = T
+)
+eq5$importance[, 1]
+
+y = eq5$y
+predicted = eq5$predicted
+1 - sum((y - predicted) ^ 2) / sum((y - mean(y)) ^ 2)
+(RMSE_out_Sample = sqrt(mean((
+  ddn$PM10[-train] - predict(eq5, newdata = ddn[-train,])
+) ^ 2)))
+(eq5MSEout = mean((ddn$PM10[-train] - predict(eq5, newdata = ddn[-train,])) ^
+                    2))
+
+
+# Leaps
+aux = regsubsets(PM10 ~ .,
+                 data = ddn[train,],
+                 nvmax = 11,
+                 method = "exhaustive")
+auxs = summary(aux)
+auxs$adjr2
+auxs$which
+eq = lm(PM10 ~ TASMAX + TASMIN + sfcWindAVG + PM_lag1 + D + Dw,
+        data = ddn,
+        subset = train)
+summary(eq)
+(RMSE_out_Sample_eq = sqrt(mean((
+  ddn$PM10[-train] - predict(eq, newdata = ddn[-train,])
+) ^ 2)))
+(eqMSEout = mean((ddn$PM10[-train] - predict(eq, newdata = ddn[-train,])) ^
+                   2))
+(RMSE_in_Sample_eq = sqrt(mean((
+  ddn$PM10[train] - predict(eq, newdata = ddn[train,])
+) ^ 2)))
+
+
+#aux = regsubsets(PM10 ~., data = ddn[train], nvmax = 11,
+#                method = "exhaustive")
+
+
+eq14 = lm(PM10 ~ PM_lag1 + TASMIN + TASMAX + D + Dw + sfcWindAVG,
+          data = ddn,
+          subset = train)
+summary(eq14)
+#RMSE in sample
+RMSE_in_Sample = sqrt(mean((ddn$PM10[train] - predict(eq14, newdata = ddn[train,])) ^
+                             2))
+
+#RMSE out of sample
+RMSE_out_Sample = sqrt(mean((ddn$PM10[-train] - predict(eq14, newdata = ddn[-train,])) ^
+                              2))
+
+
+eq = lm(PM10 ~ ., data = ddn, subset = train)
+summary(eq)
+
+(RMSE_in_Sample = sqrt(mean((
+  ddn$PM10[train] - predict(eq, newdata = ddn[train,])
+) ^ 2)))
+(RMSE_out_Sample = sqrt(mean((
+  ddn$PM10[-train] - predict(eq, newdata = ddn[-train,])
+) ^ 2)))
+
+# eq13=glm(PM10~., data=Smarket,subset=train, family=binomial)
+
+# library MASS e bibliotekata s uchebni materiali
+
+# Ok data random forest mnogo dobre----
+ddn = dd[, names(dd) %in% c(
+  "PM10",
+  "TASMAX",
+  "TASMIN",
+  "sfcWindAVG",
+  "sfcWindMIN",
+  "RHMAX",
+  "RHAVG",
+  "PSLAVG",
+  "PRCPAVG"
+)]
+ddn$PM_lag1 = lag(ddn$PM10, n = 1)
+ddn$sfcWindAVG_lag = lag(ddn$sfcWindAVG, n = 1)
+ddn = ddn[-1,]
+D1 = ifelse(ddn$RHMAX == 100, 1, 0)
+D2 = ifelse(ddn$PRCPAVG == 0, 1, 0)
+D3 = ifelse(ddn$sfcWindMIN == 0, 1, 0)
+D4 = ifelse(ddn$sfcWindAVG < 6, 1, 0)
+D6 = ifelse(ddn$sfcWindAVG_lag < 6, 1, 0)
+D5 = ifelse(ddn$PM_lag1 >= 50, 1, 0)
+
+ddn$Dw = D4 * D5 * D6
+ddn$D = D1 * D2 * D3
+
+set.seed(42)
+train = sample(nrow(ddn), round(nrow(ddn) * 3 / 4))
+
+aux = regsubsets(PM10 ~ .,
+                 data = ddn[train,],
+                 nvmax = 11,
+                 method = "exhaustive")
+auxs = summary(aux)
+auxs$adjr2
+auxs$which
+#
+eq2 = lm(PM10 ~ TASMIN + TASMAX + PM_lag1 + sfcWindAVG + Dw + D,
+         data = ddn,
+         subset = train)
+summary(eq2)
+
+(RMSE_in_Sample = sqrt(mean((
+  ddn$PM10[train] - predict(eq2, newdata = ddn[train,])
+) ^ 2)))
+(RMSE_out_Sample = sqrt(mean((
+  ddn$PM10[-train] - predict(eq2, newdata = ddn[-train,])
+) ^ 2)))
+(eq2MSEout = mean((ddn$PM10[-train] - predict(eq2, newdata = ddn[-train,])) ^
+                    2))
+
+#random forest
+library(randomForest)
+# mtry v random forest e kolko promenlivi iskame da vzima otdelnoto darvo
+# ntree - kolko darveta da sazdade po default e 500
+eq3 = randomForest(
+  PM10 ~ PM_lag1 + TASMAX + TASMIN + sfcWindAVG + PSLAVG + sfcWindAVG_lag + RHAVG + D + Dw,
+  data = ddn,
+  subset = train,
+  importance = T
+)
+
+# WIP Adjusted r square
+y = eq3$y
+predicted = eq3$predicted
+1 - sum((y - predicted) ^ 2) / sum((y - mean(y)) ^ 2)
+eq3$importance[, 1]
+(RMSE_in_Sample_eq3 = sqrt(mean((
+  ddn$PM10[train] - predict(eq3, newdata = ddn[train,])
+) ^ 2)))
+(RMSE_out_Sample_eq3 = sqrt(mean((
+  ddn$PM10[-train] - predict(eq3, newdata = ddn[-train,])
+) ^ 2)))
+(eq3MSEout = mean((ddn$PM10[-train] - predict(eq3, newdata = ddn[-train,])) ^
+                    2))
+
+windows()
+varImpPlot(eq3, type = 1) # ako sme s klasifikacionna zadacha shte iskame kolona 2
+
+eq4 = randomForest(PM10 ~ .,
+                   data = ddn,
+                   subset = train,
+                   importance = T)
+eq4$importance[, 1]
+
+y = eq4$y
+predicted = eq4$predicted
+1 - sum((y - predicted) ^ 2) / sum((y - mean(y)) ^ 2)
+(RMSE_out_Sample = sqrt(mean((
+  ddn$PM10[-train] - predict(eq4, newdata = ddn[-train,])
+) ^ 2)))
+(eq3MSEout = mean((ddn$PM10[-train] - predict(eq4, newdata = ddn[-train,])) ^
+                    2))
+
+#
+eq5 = randomForest(
+  PM10 ~ TASMAX + TASMIN + PM_lag1 + D + Dw + PSLAVG + RHAVG,
+  data = ddn,
+  subset = train,
+  importance = T
+)
+eq5$importance[, 1]
+
+y = eq5$y
+predicted = eq5$predicted
+1 - sum((y - predicted) ^ 2) / sum((y - mean(y)) ^ 2)
+(RMSE_out_Sample = sqrt(mean((
+  ddn$PM10[-train] - predict(eq5, newdata = ddn[-train,])
+) ^ 2)))
+(eq5MSEout = mean((ddn$PM10[-train] - predict(eq5, newdata = ddn[-train,])) ^
+                    2))
+
+(RMSE_out_Sample = sqrt(mean((
+  ddn$PM10[-train] - predict(eq3, newdata = ddn[-train,])
+) ^ 2)))
+(eq3MSEout = mean((ddn$PM10[-train] - predict(eq3, newdata = ddn[-train,])) ^
+                    2))
+(eqMSEout = mean((ddn$PM10[-train] - predict(eq, newdata = ddn[-train,])) ^
+                   2))
+(eq14MSEout = mean((ddn$PM10[-train] - predict(eq14, newdata = ddn[-train,])) ^
+                     2))
+
+eq14 = lm(PM10 ~ PM_lag1 + TASMAX + TASMIN + sfcWindAVG + D + Dw,
+          data = ddn,
+          subset = train)
+(RMSE_out_Sample = sqrt(mean((
+  ddn$PM10[-train] - predict(eq14, newdata = ddn[-train,])
+) ^ 2)))
+summary(eq14)
+
+# This is the mean forecast
+(n1MSEout = mean((ddn$PM10[-train] - mean(ddn$PM10)) ^ 2))
+# This is the yeaterday's value forecast
+(n2MSEout = mean((ddn$PM10[-train] - ddn$PM_lag1[-train]) ^ 2))
+
+sqrt(eq3MSEout / mean(ddn$PM10[-train]))
+sqrt(eq5MSEout / mean(ddn$PM10[-train]))
+
+# Third way----
+ddn = dd[, names(dd) %in% c(
+  "PM10",
+  "TASMAX",
+  "TASMIN",
+  "sfcWindAVG",
+  "sfcWindMIN",
+  "RHMAX",
+  "RHAVG",
+  "PSLAVG",
+  "PRCPAVG"
+)]
+ddn$PM_lag1 = lag(ddn$PM10, n = 1)
+ddn$sfcWindAVG_lag = lag(ddn$sfcWindAVG, n = 1)
+ddn = ddn[-1,]
+D1 = ifelse(ddn$RHMAX == 100, 1, 0)
+D2 = ifelse(ddn$PRCPAVG == 0, 1, 0)
+D3 = ifelse(ddn$sfcWindMIN == 0, 1, 0)
+D4 = ifelse(ddn$sfcWindAVG < 6, 1, 0)
+D6 = ifelse(ddn$sfcWindAVG_lag < 6, 1, 0)
+D5 = ifelse(ddn$PM_lag1 >= 50, 1, 0)
+
+ddn$Dw = D4 * D5 * D6
+ddn$D = D1 * D2 * D3
+ddn$DD = (ddn$sfcWindAVG_lag * ddn$PM_lag1) / ddn$sfcWindAVG
+
+
+set.seed(42)
+train = sample(nrow(ddn), round(nrow(ddn) * 3 / 4))
+
+
+library(randomForest)
+eq4 = randomForest(PM10 ~ .,
+                   data = ddn,
+                   subset = train,
+                   importance = T)
+eq4$importance[, 1]
+
+y = eq4$y
+predicted = eq4$predicted
+1 - sum((y - predicted) ^ 2) / sum((y - mean(y)) ^ 2)
+(RMSE_out_Sample = sqrt(mean((
+  ddn$PM10[-train] - predict(eq4, newdata = ddn[-train,])
+) ^ 2)))
+(eq4MSEout = mean((ddn$PM10[-train] - predict(eq4, newdata = ddn[-train,])) ^
+                    2))
+(RMSE_in_Sample = sqrt(mean((
+  ddn$PM10[train] - predict(eq4, newdata = ddn[train,])
+) ^ 2)))
+
+#
+eq5 = randomForest(
+  PM10 ~ TASMAX + TASMIN + sfcWindAVG_lag + PM_lag1 + D + Dw + DD + RHAVG + PSLAVG,
+  data = ddn,
+  subset = train,
+  importance = T
+)
+eq5$importance[, 1]
+
+y = eq5$y
+predicted = eq5$predicted
+1 - sum((y - predicted) ^ 2) / sum((y - mean(y)) ^ 2)
+(RMSE_out_Sample = sqrt(mean((
+  ddn$PM10[-train] - predict(eq5, newdata = ddn[-train,])
+) ^ 2)))
+(eq5MSEout = mean((ddn$PM10[-train] - predict(eq5, newdata = ddn[-train,])) ^
+                    2))
+(RMSE_in_Sample = sqrt(mean((
+  ddn$PM10[train] - predict(eq4, newdata = ddn[train,])
+) ^ 2)))
+
+
+
+ddn = dd[, names(dd) %in% c(
+  "PM10",
+  "TASMAX",
+  "TASMIN",
+  "sfcWindAVG",
+  "sfcWindMIN",
+  "RHMAX",
+  "RHAVG",
+  "PSLAVG",
+  "PRCPAVG"
+)]
+ddn$PM_lag1 = lag(ddn$PM10, n = 1)
+ddn$sfcWindAVG_lag = lag(ddn$sfcWindAVG, n = 1)
+ddn$SW = ddn$sfcWindAVG_lag * ddn$sfcWindAVG
+ddn$D1 = ifelse(dd$RHMAX == 100, 1, 0)
+ddn$D2 = ifelse(dd$PRCPAVG == 0, 1, 0)
+ddn$D3 = ifelse(dd$sfcWindMIN == 0, 1, 0)
+ddn = ddn[-1,]
+
+ddn$D = ddn$D1 * ddn$D2 * ddn$D3
+ddn$DD = ddn$PM_lag1 / ddn$SW
+
+set.seed(106)
+train = sample(nrow(ddn), round(nrow(ddn) * 3 / 4))
+
+library(randomForest)
+eq4 = randomForest(PM10 ~ .,
+                   data = ddn,
+                   subset = train,
+                   importance = T)
+eq4$importance[, 1]
+
+y = eq4$y
+predicted = eq4$predicted
+1 - sum((y - predicted) ^ 2) / sum((y - mean(y)) ^ 2)
+(RMSE_out_Sample = sqrt(mean((
+  ddn$PM10[-train] - predict(eq4, newdata = ddn[-train,])
+) ^ 2)))
+(eq4MSEout = mean((ddn$PM10[-train] - predict(eq4, newdata = ddn[-train,])) ^
+                    2))
+(RMSE_in_Sample = sqrt(mean((
+  ddn$PM10[train] - predict(eq4, newdata = ddn[train,])
+) ^ 2)))
+
+
+# Lasso selection -----
+library(glmnet)
+# Define a model matrix
+x = model.matrix(PM10 ~ ., ddn[, c(1:12, 17)])
+x = x[,-1]
+x = scale(x, center = T, scale = T)
+x = cbind(x, as.matrix(ddn[, 13:16]))
+y = ddn$PM10
+
+# Determine optimal lambda
+cv = cv.glmnet(x[train,], y[train], alpha = 1, standartize = F)
+windows()
+plot(cv)
+cv$lambda.min
+
+# Fit lasso model
+eq = glmnet(
+  x[train,],
+  y[train],
+  alpha = 1,
+  lambda = cv$lambda.min,
+  standardize = F
+)
+aux.lasso = data.frame(feature = rownames(eq$beta),
+                       abs.value = abs(as.numeric(eq$beta)))
+aux.lasso = aux.lasso %>%
+  arrange(desc(abs.value))
+aux.lasso
+
+eqla = lm(PM10 ~ PM_lag1 + TASMIN + TASMAX + DD + D,
+          data = ddn,
+          subset = train)
+summary(eqla)
+(RMSE_out_Sample_la = sqrt(mean((
+  ddn$PM10[-train] - predict(eqla, newdata = ddn[-train,])
+) ^ 2)))
+(eqlaMSEout = mean((ddn$PM10[-train] - predict(eqla, newdata = ddn[-train,])) ^
+                     2))
+(RMSE_in_Sample_la = sqrt(mean((
+  ddn$PM10[train] - predict(eqla, newdata = ddn[train,])
+) ^ 2)))
+sqrt(eqlaMSEout / mean(ddn$PM10[-train]))
+
+rsq <-
+  function(formula = PM10 ~ PM_lag1 + TASMIN + TASMAX + DD + D,
+           data = ddn,
+           indices) {
+    d <- data[indices,] # allows boot to select sample
+    fit <- lm(formula = PM10 ~ PM_lag1 + TASMIN + TASMAX + DD,
+              data = ddn)
+    return(summary(fit)$r.square)
+  }
+results <- boot(
+  data = ddn,
+  statistic = rsq,
+  R = 1000,
+  formula = PM10 ~ PM_lag1 + TASMIN + TASMAX + DD
+)
+plot(results)
+boot.ci(results, type = "bca")
+
+eq4 = randomForest(
+  PM10 ~ PM_lag1 + TASMIN + TASMAX + DD,
+  data = ddn,
+  subset = train,
+  importance = T
+)
+eq4$importance[, 1]
+
+y = eq4$y
+predicted = eq4$predicted
+1 - sum((y - predicted) ^ 2) / sum((y - mean(y)) ^ 2)
+(RMSE_out_Sample = sqrt(mean((
+  ddn$PM10[-train] - predict(eq4, newdata = ddn[-train,])
+) ^ 2)))
+(eq4MSEout = mean((ddn$PM10[-train] - predict(eq4, newdata = ddn[-train,])) ^
+                    2))
+(RMSE_in_Sample = sqrt(mean((
+  ddn$PM10[train] - predict(eq4, newdata = ddn[train,])
+) ^ 2)))
+
+# XGBoost----
+set.seed(2635)
+ddn = dd[, names(dd) %in% c(
+  "PM10",
+  "TASMAX",
+  "TASMIN",
+  "sfcWindAVG",
+  "sfcWindMIN",
+  "RHMAX",
+  "RHAVG",
+  "PSLAVG",
+  "PRCPAVG"
+)]
+
+ddn$PM_lag1 = lag(ddn$PM10, n = 1)
+ddn$sfcWindAVG_lag = lag(ddn$sfcWindAVG, n = 1)
+ddn$SW = ddn$sfcWindAVG_lag * ddn$sfcWindAVG
+ddn$D1 = ifelse(dd$RHMAX == 100, 1, 0)
+ddn$D2 = ifelse(dd$PRCPAVG == 0, 1, 0)
+ddn$D3 = ifelse(dd$sfcWindMIN == 0, 1, 0)
+ddn = ddn[-1,]
+
+
+x = model.matrix(PM10 ~ ., ddn)
+x = x[,-1]
+x = scale(x, center = T, scale = T)
+x = cbind(x, as.matrix(ddn[, 13:16]))
+y = ddn$PM10
+
+# Creating a label variable
+labelxgb <- ddn %>%
+  select(ddn$PM10) %>%
+  is.na()
+
+# Dividing into train and test samples
+trsample <- sample(nrow(ddn), round(nrow(ddn) * 3 / 4))
+tesample <- sample(nrow(ddn), round(nrow(ddn) * 1 / 4))
+
+train_sample <- x[1:trsample, ]
+train_label <- labelxgb[1:trsample]
+
+test_sample <- x[-(1:trsample), ]
+test_label <- labelxgb[-(1:trsample)]
+
+dtrain <- xgb.DMatrix(data = train_sample, label = train_label)
+dtest <- xgb.DMatrix(data = test_sample, label = test_label)
+
+model <-
+  xgboost(data = dtrain,
+          nround = 5000,
+          objective = "binary:logistic")
+?xgb.DMatrix
+pred <- predict(model, tesample)
+
+scale(ddn)
+xDmatrix <- xgb.DMatrix(data = x, label = train)
+
+sum(is.na(x))
+sum(is.na(train))
+
+xgboostmodel <-  xgboost(data = train_sample,
+                         nrounds = 2,
+                         objective = "binary:logistic")
