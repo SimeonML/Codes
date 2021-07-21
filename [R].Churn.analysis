@@ -1,0 +1,254 @@
+# Import data ----
+rm(list = ls())
+
+library(psych)
+library(dplyr)
+library(glmnet)
+
+originaldata = read.csv('Data.csv', na.strings = c("NA", "", " ", "  ", "   "))
+
+# Look at the data structure ----
+#summary
+aux = data.frame(
+  nm = names(originaldata),
+  cl = sapply(originaldata, class),
+  nas = colSums(is.na(originaldata))
+)
+
+#kolko ot tezi s lipsvashtite nabludeniq sa churn
+originaldata$Churn[which(is.na(originaldata$TotalCharges) == T)]
+
+#check for dublicates
+sum(duplicated(originaldata$customerID))
+
+# Clean missing values
+originaldata = na.omit(originaldata)
+originaldata = originaldata[, -1]
+originaldata$EBITDA1 = originaldata$MonthlyCharges * 0.9
+originaldata$EBITDA2 = originaldata$TotalCharges * 0.9
+
+# Make an auxiliary table with variables names,class and missing values
+aux = data.frame(
+  nm = names(originaldata),
+  cl = sapply(originaldata, class),
+  nas = colSums(is.na(originaldata))
+)
+
+
+# Replacing factors ----
+# No need for the CustomerID column for the analysis
+originaldatanums = originaldata
+
+#replacing "Male" "Female" with 0, 1
+originaldatanums[, 1] = ifelse(originaldatanums[, 1] == "Female", 1, 0)
+
+#replacing "Yes" "No" with 1, 0
+originaldatanums[, c(3, 4, 6, 16, 20)] = ifelse(originaldatanums[, c(3, 4, 6, 16, 20)] == "Yes", 1, 0)
+
+#replacing "Yes" "No" "No internet service" with 1,0,2
+originaldatanums[, c(9:14)] = ifelse(originaldatanums[, c(9:14)] == "Yes",
+                                     1,
+                                     ifelse(originaldatanums[, c(9:14)] == "No", 0, 2))
+
+#replacing "Yes" "No" "No phone service" with 1,0,2
+originaldatanums[, 7] = ifelse(originaldatanums[, 7] == "Yes",
+                               1,
+                               ifelse(originaldatanums[, 7] == "No", 0, 2))
+
+#replacing DSL, Fiber optic, No with 10,11,3
+originaldatanums[, 8] = ifelse(originaldatanums[, 8] == "DSL",
+                               1,
+                               ifelse(originaldatanums[, 8] == "Fiber optic", 2, 0))
+
+#replacing Month-to-month, One year, Two year with 30,12,24
+originaldatanums[, 15] = ifelse(originaldatanums[, 15] == "Month-to-month",
+                                0,
+                                ifelse(originaldatanums[, 15] == "One year", 1, 2))
+
+#replacing (Electronic check, Mailed check, Bank transfer (automatic), Credit card (automatic))
+# with 0,1,2,3
+originaldatanums[, 17] = ifelse(
+  originaldatanums[, 17] == "Electronic check",
+  0,
+  ifelse(
+    originaldatanums[, 17] == "Mailed check",
+    1,
+    ifelse(originaldatanums[, 17] == "Bank transfer (automatic)", 2, 3)
+  )
+)
+
+#check the classes of the new dataframe
+aux2 = data.frame(
+  nm = names(originaldatanums),
+  cl = sapply(originaldatanums, class),
+  nas = colSums(is.na(originaldatanums))
+)
+
+rm(aux,aux2)
+
+# Visualize data ----
+windows()
+par(mfrow = c(1, 3))
+boxplot(tenure ~ Churn, data = originaldatanums, col = c("blue", "red"))
+boxplot(TotalCharges ~ Churn,
+        data = originaldatanums,
+        col = c("blue", "red"))
+boxplot(MonthlyCharges ~ Churn,
+        data = originaldatanums,
+        col = c("blue", "red"))
+
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+#windows()
+#cor.plot(cor(originaldatanums), numbers = T, las = 2)
+
+#windows()
+#cor.plot(cor(originaldatanums[, c(5, 18, 19, 20)]), numbers = T, las = 2)
+
+#which(colnames(originaldatanums) == "tenure")
+
+#windows()
+#pairs(Churn ~ ., data = originaldatanums[, c(5, 18, 19, 20)])
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+#Data understanding ----
+#kolko sa churn
+table(originaldatanums$Churn)
+
+#check for monthly charges above 80$ - how many churn
+a = originaldatanums[which(originaldatanums$MonthlyCharges > 80), ]
+sum(a$Churn == "Yes")
+sum(a$Churn == "No")
+2665 / 7032
+
+b = originaldatanums[which(originaldatanums$MonthlyCharges <= 80), ]
+sum(b$Churn == "Yes")
+4367 / 7032
+
+0.6210182 * 0.2205175
+
+# flag variable
+#Gender
+round(prop.table(
+  table(originaldata$InternetService, originaldata$Churn),
+  margin = 1
+), 2)
+chisq.test(originaldata$gender, originaldata$Churn)
+
+#Payment method
+round(prop.table(
+  table(originaldata$PaymentMethod, originaldata$Churn),
+  margin = 1
+), 2)
+chisq.test(originaldata$PaymentMethod, originaldata$Churn)
+
+#Online security
+table(originaldata$OnlineSecurity, originaldata$Churn)
+round(prop.table(
+  table(originaldata$OnlineSecurity, originaldata$Churn),
+  margin = 1
+), 2)
+chisq.test(originaldata$OnlineSecurity, originaldata$Churn)
+
+#Tech support
+table(originaldata$TechSupport, originaldata$Churn)
+round(prop.table(table(
+  originaldata$TechSupport, originaldata$Churn
+), margin = 1), 2)
+chisq.test(originaldata$TechSupport, originaldata$Churn)
+
+#baseline prob
+length(originaldatanums$Churn[originaldata$Churn == "Yes"]) / nrow(originaldata)
+#0.265785 bazova proporciq
+
+
+#Lasso
+lasso = originaldatanums[, -c(1, 21, 22)]
+lasso$MonthlyCharges = scale(originaldatanums$MonthlyCharges)
+lasso$tenure = scale(originaldatanums$tenure)
+lasso$TotalCharges = scale(originaldatanums$TotalCharges)
+
+x = model.matrix(Churn ~ ., lasso)
+x = x[, -1] # mahame kolona edno zashtoto lm/glm avtomatichno dobavqt stojnosti 1 za beta o
+#x=scale(x,center=T,scale=F) #standartizirame dannite
+y = originaldatanums$Churn
+
+# Split data into training and test set
+set.seed(1)
+train = sample(nrow(lasso), round(nrow(lasso) * 3 / 4))
+#Determine optimal lambda
+cv = cv.glmnet(x[train, ],
+               y[train],
+               family = "binomial",
+               alpha = 1,
+               standartize = F)
+windows()
+plot(cv)
+cv$lambda.min
+eq = glmnet(
+  x[train, ],
+  y[train],
+  family = "binomial",
+  alpha = 1,
+  lambda = cv$lambda.min,
+  standardize = F
+)
+eq$beta
+
+
+#classification tree
+library(tree)
+train = sample(nrow(originaldatanums), round(nrow(originaldatanums) * 3 /
+                                               4))
+eq = tree(Churn ~ TotalCharges, data = originaldatanums, subset = train)
+windows()
+plot(eq)
+text(eq)
+eq
+
+eq2 = tree(Churn ~ tenure, data = originaldatanums, subset = train)
+windows()
+plot(eq2)
+text(eq2)
+eq2
+
+eq3 = tree(Churn ~ MonthlyCharges, data = originaldatanums, subset = train)
+windows()
+plot(eq3)
+text(eq3)
+eq3
+
+#Logistic regresison
+train2 = sample(nrow(originaldatanums), round(nrow(originaldatanums) * 3 / 4))
+
+logreg <-
+  glm(
+    Churn ~ MonthlyCharges + tenure + TechSupport + InternetService + Contract + PaymentMethod,
+    family = binomial,
+    data = originaldatanums,
+    subset = train2
+  )
+summary(logreg)
+
+#Random forest
+library(randomForest)
+?randomForest
+eq4 = randomForest(
+  Churn ~ MonthlyCharges + tenure + TechSupport + InternetService + Contract + PaymentMethod,
+  data = originaldatanums,
+  subset = train2,
+  importance = T
+)
+eq4$importance[, 1]
+
+y = eq4$y
+predicted = eq4$predicted
+1 - sum((y - predicted) ^ 2) / sum((y - mean(y)) ^ 2)
+(RMSE_out_Sample = sqrt(mean((
+  originaldatanums$Churn[-train2] - predict(eq4, newdata = originaldatanums[-train2, ])
+) ^ 2)))
+(eq4MSEout = mean((originaldatanums$Churn[-train2] - predict(eq4, newdata = originaldatanums[-train2, ])) ^
+                    2))
+(RMSE_in_Sample = sqrt(mean((
+  originaldatanums$Churn[train2] - predict(eq4, newdata = originaldatanums[train2, ])
+) ^ 2)))
