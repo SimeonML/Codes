@@ -29,6 +29,7 @@ if (!require(arulesViz)) {
     install.packages("arulesViz")
   library(arulesViz)
 }
+
 # if (!require(plyr)) {
 #   if (!require(plyr))
 #     install.packages("plyr")
