@@ -1,0 +1,134 @@
+# Libraries ----
+rm(list = ls())
+if (!require(plyr)) {
+  install.packages("plyr")
+  library(plyr)
+}
+if (!require(dplyr)) {
+  install.packages("dplyr")
+  library(dplyr)
+}
+if (!require(xml2)) {
+  install.packages("xml2")
+  library(xml2)
+}
+if (!require(tibble)) {
+  install.packages("tibble")
+  library(tibble)
+}
+if (!require(quantmod)) {
+  install.packages("quantmod")
+  library(quantmod)
+}
+if (!require(writexl)) {
+  install.packages("writexl")
+  library(writexl)
+}
+setwd("D:\\R\\FX extract")
+
+# To BGN ----
+webpage_url.BG <-
+  "http://bnb.bg/Statistics/StExternalSector/StExchangeRates/StERForeignCurrencies/index.htm?toLang=_EN"
+webpage.BG <- xml2::read_html(webpage_url.BG)
+exchange.rate.BGN.tibble <- rvest::html_table(webpage.BG)[[1]] %>%
+  tibble::as_tibble(.name_repair = "unique") # repair the repeated columns
+exchange.rate.BGN.tibble %>% dplyr::glimpse(45)
+exchange.rate.BGN.dataframe <-
+  as.data.frame(exchange.rate.BGN.tibble)
+colnames(exchange.rate.BGN.dataframe) <-
+  c(
+    "Name",
+    "Currency",
+    "For.1.currency/gold",
+    "Exchange.rate.to.BGN",
+    "Reverse.exchange.rate"
+  )
+Curr_type <- c("M", "M", "M", "M", "M")
+From_curr <- c("EUR", "USD", "RON", "GBP", "KRW")
+To_curr <- c("BGN", "BGN", "BGN", "BGN", "BGN")
+EUR_BGN <- 1.95583
+USD_BGN <-
+  exchange.rate.BGN.dataframe$Exchange.rate.to.BGN[which(exchange.rate.BGN.dataframe$Currency == "USD")]
+RON_BGN <-
+  exchange.rate.BGN.dataframe$Exchange.rate.to.BGN[which(exchange.rate.BGN.dataframe$Currency == "RON")]
+GBP_BGN <-
+  exchange.rate.BGN.dataframe$Exchange.rate.to.BGN[which(exchange.rate.BGN.dataframe$Currency == "GBP")]
+KRW_BGN <-
+  exchange.rate.BGN.dataframe$Exchange.rate.to.BGN[which(exchange.rate.BGN.dataframe$Currency == "KRW")]
+exchange.list.BGN <-
+  data.frame(EUR_BGN, USD_BGN, RON_BGN, GBP_BGN, KRW_BGN)
+exchange.list.BGN <- as.character(exchange.list.BGN)
+Rate <- exchange.list.BGN
+Date <-
+  c(Sys.Date(),
+    Sys.Date(),
+    Sys.Date(),
+    Sys.Date(),
+    Sys.Date())
+exchange.rate.BGN <-
+  data.frame(Date, Curr_type, From_curr, To_curr, Rate)
+exchange.rate.BGN$Rate <- as.numeric(exchange.rate.BGN$Rate)
+print(exchange.rate.BGN)
+write_xlsx(
+  exchange.rate.BGN[,-1],
+  "D:\\R\\FX extract\\exchange rate BGN.xls"
+)
+
+# To RON ----
+webpage_url.RO <-
+  "https://www.bnr.ro/Cursul-de-schimb-524.aspx"
+webpage.RO <- xml2::read_html(webpage_url.RO)
+exchange.rate.RON.tibble <- rvest::html_table(webpage.RO)[[1]] %>%
+  tibble::as_tibble(.name_repair = "unique") # repair the repeated columns
+exchange.rate.RON.tibble %>% dplyr::glimpse(45)
+exchange.rate.RON.dataframe <-
+  as.data.frame(exchange.rate.RON.tibble)
+exchange.rate.RON.dataframe <-
+  exchange.rate.RON.dataframe[, c(2, 7)]
+colnames(exchange.rate.RON.dataframe) <-
+  c("Currency", "Exchange.rate.to.RON")
+exchange.rate.RON.dataframe$Exchange.rate.to.RON <-
+  gsub("[^0-9]",
+       ".",
+       exchange.rate.RON.dataframe$Exchange.rate.to.RON)
+exchange.rate.RON.dataframe$Exchange.rate.to.RON <-
+  as.numeric(exchange.rate.RON.dataframe$Exchange.rate.to.RON)
+Curr_type <- c("M", "M", "M", "M", "M")
+From_curr <- c("BGN", "EUR", "GBP", "KRW", "USD")
+To_curr <- c("RON", "RON", "RON", "RON", "RON")
+BGN_RON <-
+  exchange.rate.RON.dataframe$Exchange.rate.to.RON[which(exchange.rate.RON.dataframe$Currency ==
+                                                           "BGN")]
+EUR_RON <-
+  exchange.rate.RON.dataframe$Exchange.rate.to.RON[which(exchange.rate.RON.dataframe$Currency ==
+                                                           "EUR")]
+GBP_RON <-
+  exchange.rate.RON.dataframe$Exchange.rate.to.RON[which(exchange.rate.RON.dataframe$Currency ==
+                                                           "GBP")]
+KRW_RON <-
+  exchange.rate.RON.dataframe$Exchange.rate.to.RON[which(exchange.rate.RON.dataframe$Currency ==
+                                                           "KRW")]
+USD_RON <-
+  exchange.rate.RON.dataframe$Exchange.rate.to.RON[which(exchange.rate.RON.dataframe$Currency ==
+                                                           "USD")]
+exchange.list.RON <-
+  data.frame(BGN_RON, EUR_RON, GBP_RON, KRW_RON, USD_RON)
+exchange.list.RON <- as.character(exchange.list.RON)
+Rate <- exchange.list.RON
+Date <-
+  c(Sys.Date(),
+    Sys.Date(),
+    Sys.Date(),
+    Sys.Date(),
+    Sys.Date())
+exchange.rate.RON <-
+  data.frame(Date, Curr_type, From_curr, To_curr, Rate)
+exchange.rate.RON$Rate <- as.numeric(exchange.rate.RON$Rate)
+print(exchange.rate.RON)
+write_xlsx(
+  exchange.rate.RON[,-1],
+  "D:\\R\\FX extract\\exchange rate RON.xls"
+)
+
+print(exchange.rate.RON)
+print(exchange.rate.BGN)
