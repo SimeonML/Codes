@@ -1,0 +1,42 @@
+import os
+import time
+import zipfile
+import easygui
+from PyPDF2 import PdfFileMerger
+from easygui import *
+
+# Select the archived folder.
+Archive = easygui.fileopenbox("Select Archive")
+print(Archive)
+dir_name = os.path.splitext(Archive)[:1][0]
+os.mkdir(dir_name)
+Folder = dir_name
+with zipfile.ZipFile(Archive,"r") as zip_ref:
+    zip_ref.extractall(Folder)
+Folder2 = easygui.diropenbox("Select Result Directory")
+
+T = Folder2+"/"
+
+pdfs = os.listdir(fr'{Folder}')
+len_pdfs = len(pdfs)
+
+F_in_L = pdfs[0]
+L_in_L = pdfs[len(pdfs)-1]
+print(len_pdfs)
+print(F_in_L)
+print(L_in_L)
+
+X = time.strftime("%Y_%m_%d-%I_%M_%S_%p")
+
+# With os.listdir we will create the list of all files in a directory.
+merger = PdfFileMerger(strict=False)
+
+for file in pdfs:
+    if file.endswith(".pdf"):
+        path_with_file = os.path.join(fr'{Folder}', file)
+        print(path_with_file)
+        merger.append(path_with_file, import_bookmarks=False)
+merger.write(f'{T}'+"Result for  "+F_in_L+"--"+L_in_L+"__"+X+"__.pdf")
+
+merger.close()
+textbox("Done!", "Finish.", "Please, check the result file."+"   "+"Result for  "+F_in_L+"--"+L_in_L+"__"+X+"__.pdf"+"In folder..."+Folder2+"                              "+"The number of files that were processed was..."+str(len_pdfs)+"!)")
