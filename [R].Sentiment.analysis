@@ -426,3 +426,4 @@ KRpos = unlist(sentwords$positive)
 KRposs = wordStem(KRpos)
 KRposs = data.frame(table(KRposs))
 KRposs = KRposs[order(KRposs$Freq, decreasing = T), ]
+ 
